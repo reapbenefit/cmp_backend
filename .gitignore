@@ -1,0 +1,5 @@
+*.csv
+notebooks
+*pyc
+*.json
+.env
