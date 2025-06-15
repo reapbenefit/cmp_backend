@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   rb-backend:
-    image: adalmia/rb-backend:latest
+    image: adalmia/rb-cmp-backend:latest
     ports:
       - "8001:8001"
     environment:
