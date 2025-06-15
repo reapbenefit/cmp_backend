@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  rb-backend:
+    image: adalmia/rb-backend:latest
+    ports:
+      - "8001:8001"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PHOENIX_API_KEY=${PHOENIX_API_KEY}
+      - PHOENIX_ENDPOINT=${PHOENIX_ENDPOINT}
+      - ENV=${ENV}
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/docs" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

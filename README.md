@@ -18,6 +18,7 @@ pip install -r requirements.txt
 OPENAI_API_KEY=your_openai_api_key
 PHOENIX_API_KEY=your_phoenix_api_key (optional, if you use phoenix)
 PHOENIX_ENDPOINT=your_phoenix_endpoint (optional, only required if you add [authentication](https://arize.com/docs/phoenix/authentication) to your Phoenix instance)
+ENV=development (optional, defaults to development)
 ```
 
 ## Running it locally

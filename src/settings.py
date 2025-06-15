@@ -18,7 +18,7 @@ settings = Settings()
 
 os.environ["PHOENIX_API_KEY"] = settings.phoenix_api_key
 tracer_provider = register(
-    project_name=f"cmp-{settings.env}",
+    project_name=f"cmp-{settings.env or 'development'}",
     auto_instrument=True,
     batch=True,
     endpoint=settings.phoenix_endpoint,
