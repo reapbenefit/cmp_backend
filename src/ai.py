@@ -100,6 +100,9 @@ async def extract_metadata(chat_history: list[ChatResponse]):
         relevance: str = Field(
             description="Description of how the skill is relevant to the action based on the chat history"
         )
+        response: str = Field(
+            description="Description of the skill relevance addressed to the student"
+        )
 
     class Output(BaseModel):
         skill_relevances: list[SkillRelevance] = Field(
@@ -109,7 +112,7 @@ async def extract_metadata(chat_history: list[ChatResponse]):
     parser = PydanticOutputParser(pydantic_object=Output)
     format_instructions = parser.get_format_instructions()
 
-    system_prompt = f"""Analyze a student's action and the corresponding conversation history to provide a personalized, one-line description of how each listed skill is demonstrated in that context.\n\nReview the conversation thoroughly and connect specific elements of it to the skills listed. Each description should clearly link an aspect of the conversation to the demonstration of a particular skill.\n\n# Examples\n\n**Example** (shortened for illustration purposes; real examples should detail specific parts of the conversation):\n- **Problem-Solving**: The student's question about alternative solutions shows proactive engagement.\n  \n- **Communication**: The clear explanation of their thought process demonstrates effective communication.\n\n- **Critical Thinking**: The student’s questioning of assumptions indicates critical evaluation of information.\n\n# Notes\n\nConsider nuances such as tone, clarity, and depth of the conversation that might subtly demonstrate skills. Each description should be crafted to reflect both the conversation content and the student’s unique expression of the skill.\n\n### Output format\n\n{format_instructions}"""
+    system_prompt = f"""Analyze a student's action and the corresponding conversation history to provide a personalized, one-line description of how each listed skill is demonstrated in that context as 2 fields for each skill: `relevance`, for a person viewing the student's action; `response`, for the student.\n\nReview the conversation thoroughly and connect specific elements of it to the skills listed. Each description should clearly link an aspect of the conversation to the demonstration of a particular skill.\n\n# Examples\n\n**Example** (shortened for illustration purposes; real examples should detail specific parts of the conversation):\n- **Problem-Solving**: The student's question about alternative solutions shows proactive engagement.\n  \n- **Communication**: The clear explanation of their thought process demonstrates effective communication.\n\n- **Critical Thinking**: The student’s questioning of assumptions indicates critical evaluation of information.\n\n# Notes\n\nConsider nuances such as tone, clarity, and depth of the conversation that might subtly demonstrate skills. Each description should be crafted to reflect both the conversation content and the student’s unique expression of the skill.\n\n### Output format\n\n{format_instructions}"""
 
     skill_relevance_response = await run_llm_with_instructor(
         api_key=settings.openai_api_key,
@@ -135,6 +138,9 @@ async def extract_metadata(chat_history: list[ChatResponse]):
         skills[skill_to_index[skill_relevance.skill]][
             "relevance"
         ] = skill_relevance.relevance
+        skills[skill_to_index[skill_relevance.skill]][
+            "response"
+        ] = skill_relevance.response
 
     return {
         "action_type": response.action_type,

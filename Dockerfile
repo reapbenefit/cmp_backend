@@ -22,8 +22,20 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source code
 COPY src/ ./src/
 
+# Create a script to generate .env file from environment variables
+RUN echo '#!/bin/bash\n\
+    echo "OPENAI_API_KEY=${OPENAI_API_KEY}" > /app/src/.env\n\
+    echo "PHOENIX_API_KEY=${PHOENIX_API_KEY}" >> /app/src/.env\n\
+    echo "PHOENIX_ENDPOINT=${PHOENIX_ENDPOINT}" >> /app/src/.env\n\
+    echo "ENV=${ENV}" >> /app/src/.env\n\
+    exec "$@"' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+
 # Expose port
 EXPOSE 8001
 
-# Change to src directory and start the application
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8001"] 
+# Change to src directory 
+WORKDIR /app/src
+
+# Use the entrypoint script
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
