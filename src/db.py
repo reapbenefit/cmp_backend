@@ -1,12 +1,13 @@
 from contextlib import asynccontextmanager
+from typing import List
 import os
 from os.path import exists
 import sqlite3
+import uuid
 import aiosqlite
 from config import (
     sqlite_db_path,
     chat_history_table_name,
-    sessions_table_name,
     users_table_name,
     communities_table_name,
     actions_table_name,
@@ -15,7 +16,13 @@ from config import (
     skills_table_name,
     action_skills_table_name,
 )
-from models import SignupUserRequest, CreateCommunityRequest, UpdateUserProfileRequest
+from models import (
+    SignupUserRequest,
+    CreateCommunityRequest,
+    UpdateUserProfileRequest,
+    CreateActionRequest,
+    AddChatMessageRequest,
+)
 
 
 @asynccontextmanager
@@ -52,75 +59,35 @@ async def create_tables(cursor):
     """Create the necessary tables for the application"""
 
     # Create users table
-    await cursor.execute(
-        f"""
-        CREATE TABLE IF NOT EXISTS {users_table_name} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            first_name TEXT NOT NULL,
-            last_name TEXT NOT NULL,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            location_state TEXT,
-            location_city TEXT,
-            location_country TEXT,
-            profile_picture TEXT,
-            bio TEXT,
-            highlight TEXT,
-            is_verified BOOLEAN DEFAULT FALSE,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """
-    )
-
-    # Create sessions table
-    await cursor.execute(
-        f"""
-        CREATE TABLE IF NOT EXISTS {sessions_table_name} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    """
-    )
-
-    # Create chat_history table
-    await cursor.execute(
-        f"""
-        CREATE TABLE IF NOT EXISTS {chat_history_table_name} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id INTEGER NOT NULL,
-            role TEXT NOT NULL,
-            content TEXT NOT NULL,
-            response_type TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (session_id) REFERENCES sessions (id)
-        )
-    """
-    )
-
-    # Create communities table
-    await cursor.execute(
-        f"""
-        CREATE TABLE IF NOT EXISTS {communities_table_name} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            description TEXT NOT NULL,
-            link TEXT,
-            user_id INTEGER NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    """
-    )
+    # await cursor.execute(
+    #     f"""
+    #     CREATE TABLE IF NOT EXISTS {users_table_name} (
+    #         id INTEGER PRIMARY KEY AUTOINCREMENT,
+    #         first_name TEXT NOT NULL,
+    #         last_name TEXT NOT NULL,
+    #         username TEXT UNIQUE NOT NULL,
+    #         email TEXT UNIQUE NOT NULL,
+    #         password TEXT NOT NULL,
+    #         location_state TEXT,
+    #         location_city TEXT,
+    #         location_country TEXT,
+    #         profile_picture TEXT,
+    #         bio TEXT,
+    #         highlight TEXT,
+    #         is_verified BOOLEAN DEFAULT FALSE,
+    #         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    #     )
+    # """
+    # )
 
     # Create actions table
     await cursor.execute(
         f"""
         CREATE TABLE IF NOT EXISTS {actions_table_name} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            description TEXT NOT NULL,
+            uuid TEXT UNIQUE NOT NULL,
+            title TEXT,
+            description TEXT,
             user_id INTEGER NOT NULL,
             status TEXT,
             is_verified BOOLEAN DEFAULT FALSE,
@@ -137,50 +104,87 @@ async def create_tables(cursor):
     """
     )
 
-    # Create action_skills table
+    # Create chat_history table
     await cursor.execute(
         f"""
-        CREATE TABLE IF NOT EXISTS {action_skills_table_name} (
+        CREATE TABLE IF NOT EXISTS {chat_history_table_name} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             action_id INTEGER NOT NULL,
-            skill_id INTEGER NOT NULL,
-            summary TEXT,
-            PRIMARY KEY (action_id, skill_id),
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            response_type TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (action_id) REFERENCES actions (id)
         )
     """
     )
 
-    # Create action_categories table
+    # Create index on action_id column for chat_history table
     await cursor.execute(
         f"""
-        CREATE TABLE IF NOT EXISTS {action_categories_table_name} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL
-        )
+        CREATE INDEX IF NOT EXISTS idx_chat_history_action_id ON {chat_history_table_name} (action_id)
     """
     )
 
-    # Create action_types table
-    await cursor.execute(
-        f"""
-        CREATE TABLE IF NOT EXISTS {action_types_table_name} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL
-        )
-    """
-    )
+    # Create communities table
+    # await cursor.execute(
+    #     f"""
+    #     CREATE TABLE IF NOT EXISTS {communities_table_name} (
+    #         id INTEGER PRIMARY KEY AUTOINCREMENT,
+    #         name TEXT NOT NULL,
+    #         description TEXT NOT NULL,
+    #         link TEXT,
+    #         user_id INTEGER NOT NULL,
+    #         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    #         FOREIGN KEY (user_id) REFERENCES users (id)
+    #     )
+    # """
+    # )
 
-    # Create skills table
-    await cursor.execute(
-        f"""
-        CREATE TABLE IF NOT EXISTS {skills_table_name} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            description TEXT,
-            icon TEXT
-        )
-    """
-    )
+    # Create action_skills table
+    # await cursor.execute(
+    #     f"""
+    #     CREATE TABLE IF NOT EXISTS {action_skills_table_name} (
+    #         action_id INTEGER NOT NULL,
+    #         skill_id INTEGER NOT NULL,
+    #         summary TEXT,
+    #         PRIMARY KEY (action_id, skill_id),
+    #         FOREIGN KEY (action_id) REFERENCES actions (id)
+    #     )
+    # """
+    # )
+
+    # # Create action_categories table
+    # await cursor.execute(
+    #     f"""
+    #     CREATE TABLE IF NOT EXISTS {action_categories_table_name} (
+    #         id INTEGER PRIMARY KEY AUTOINCREMENT,
+    #         name TEXT NOT NULL
+    #     )
+    # """
+    # )
+
+    # # Create action_types table
+    # await cursor.execute(
+    #     f"""
+    #     CREATE TABLE IF NOT EXISTS {action_types_table_name} (
+    #         id INTEGER PRIMARY KEY AUTOINCREMENT,
+    #         name TEXT NOT NULL
+    #     )
+    # """
+    # )
+
+    # # Create skills table
+    # await cursor.execute(
+    #     f"""
+    #     CREATE TABLE IF NOT EXISTS {skills_table_name} (
+    #         id INTEGER PRIMARY KEY AUTOINCREMENT,
+    #         name TEXT NOT NULL,
+    #         description TEXT,
+    #         icon TEXT
+    #     )
+    # """
+    # )
 
 
 async def init_db():
@@ -198,25 +202,8 @@ async def init_db():
 
         try:
             # Check if any table is missing and create tables if needed
-            tables_to_check = [
-                users_table_name,
-                sessions_table_name,
-                chat_history_table_name,
-                communities_table_name,
-            ]
-            missing_tables = []
-
-            for table_name in tables_to_check:
-                result = await cursor.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-                    (table_name,),
-                )
-                if not await result.fetchone():
-                    missing_tables.append(table_name)
-
-            if missing_tables:
-                await create_tables(cursor)
-                await conn.commit()
+            await create_tables(cursor)
+            await conn.commit()
 
         except Exception as exception:
             # delete db
@@ -230,13 +217,19 @@ async def verify_user_credentials(email: str, password: str) -> bool:
         cursor = await conn.cursor()
 
         result = await cursor.execute(
-            f"SELECT id FROM {users_table_name} WHERE email = ? AND password = ?",
+            f"SELECT id, username, first_name, last_name, email FROM {users_table_name} WHERE email = ? AND password = ?",
             (email, password),
         )
         user_record = await result.fetchone()
 
         if user_record:
-            return {"id": user_record[0], "email": email}
+            return {
+                "id": user_record[0],
+                "username": user_record[1],
+                "first_name": user_record[2],
+                "last_name": user_record[3],
+                "email": user_record[4],
+            }
 
         return None
 
@@ -286,21 +279,23 @@ async def create_user(user: SignupUserRequest):
         }
 
 
-async def get_user_portfolio(user_id: int):
+async def get_user_portfolio(username: str):
     """Get the portfolio of a user."""
     async with get_new_db_connection() as conn:
         cursor = await conn.cursor()
 
         result = await cursor.execute(
-            f"SELECT id, first_name, last_name, username, email, is_verified, bio, location_state, location_city, location_country FROM {users_table_name} WHERE id = ?",
-            (user_id,),
+            f"SELECT id, first_name, last_name, username, email, is_verified, bio, location_state, location_city, location_country FROM {users_table_name} WHERE username = ?",
+            (username,),
         )
 
         user = await result.fetchone()
+        if not user:
+            raise Exception("User not found")
 
         communities_result = await cursor.execute(
             f"SELECT id, name, description, link FROM communities WHERE user_id = ?",
-            (user_id,),
+            (user[0],),
         )
         communities = await communities_result.fetchall()
         communities = [
@@ -312,9 +307,6 @@ async def get_user_portfolio(user_id: int):
             }
             for community in communities
         ]
-
-        if not user:
-            raise Exception("User not found")
 
         return {
             "id": user[0],
@@ -356,20 +348,137 @@ async def create_community_for_user(community: CreateCommunityRequest):
         }
 
 
-async def update_user_profile_for_user(user_id: int, request: UpdateUserProfileRequest):
+async def update_user_profile_for_user(
+    username: str, request: UpdateUserProfileRequest
+):
     async with get_new_db_connection() as conn:
         cursor = await conn.cursor()
 
         await cursor.execute(
-            f"UPDATE {users_table_name} SET bio = ?, location_state = ?, location_city = ? WHERE id = ?",
+            f"UPDATE {users_table_name} SET bio = ?, location_state = ?, location_city = ? WHERE username = ?",
             (
                 request.bio,
                 request.location_state,
                 request.location_city,
-                user_id,
+                username,
             ),
         )
 
         await conn.commit()
 
-        return await get_user_portfolio(user_id)
+        return await get_user_portfolio(username)
+
+
+async def get_action_for_user(action_id: int):
+    async with get_new_db_connection() as conn:
+        cursor = await conn.cursor()
+
+        result = await cursor.execute(
+            f"SELECT id, uuid, title, description, status, is_verified, created_at FROM {actions_table_name} WHERE id = ?",
+            (action_id,),
+        )
+
+        action = await result.fetchone()
+        if not action:
+            raise Exception("Action not found")
+
+        return {
+            "id": action[0],
+            "uuid": action[1],
+            "title": action[2],
+            "description": action[3],
+            "status": action[4],
+            "is_verified": action[5],
+            "created_at": action[6],
+        }
+
+
+async def create_action_for_user(action: CreateActionRequest):
+    async with get_new_db_connection() as conn:
+        cursor = await conn.cursor()
+
+        action_uuid = str(uuid.uuid4())
+
+        await cursor.execute(
+            f"INSERT INTO {actions_table_name} (user_id, title, status, uuid) VALUES (?, ?, ?, ?)",
+            (action.user_id, action.title, "draft", action_uuid),
+        )
+
+        action_id = cursor.lastrowid
+
+        await cursor.execute(
+            f"INSERT INTO {chat_history_table_name} (action_id, role, content, response_type) VALUES (?, ?, ?, ?)",
+            (action_id, "user", action.user_message, "text"),
+        )
+
+        await conn.commit()
+
+        return await get_action_for_user(cursor.lastrowid)
+
+
+async def get_action_chat_history(action_uuid: str):
+    async with get_new_db_connection() as conn:
+        cursor = await conn.cursor()
+
+        result = await cursor.execute(
+            f"SELECT id, role, content, response_type, created_at FROM {chat_history_table_name} WHERE action_id = (SELECT id FROM {actions_table_name} WHERE uuid = ?) ORDER BY created_at ASC",
+            (action_uuid,),
+        )
+
+        chat_history = await result.fetchall()
+
+        return [
+            {
+                "id": chat[0],
+                "role": chat[1],
+                "content": chat[2],
+                "response_type": chat[3],
+                "created_at": chat[4],
+            }
+            for chat in chat_history
+        ]
+
+
+async def get_all_chat_sessions_for_user(user_id: int):
+    async with get_new_db_connection() as conn:
+        cursor = await conn.cursor()
+
+        result = await cursor.execute(
+            f"""
+            SELECT a.uuid, a.title, MAX(c.created_at) as last_message_time
+            FROM {actions_table_name} a
+            INNER JOIN {chat_history_table_name} c ON a.id = c.action_id
+            WHERE a.user_id = ?
+            GROUP BY a.id, a.uuid, a.title
+            ORDER BY last_message_time DESC
+            """,
+            (user_id,),
+        )
+
+        chat_sessions = await result.fetchall()
+
+        return [
+            {
+                "uuid": session[0],
+                "title": session[1],
+                "last_message_time": session[2],
+            }
+            for session in chat_sessions
+        ]
+
+
+async def add_messages_to_action_history(
+    action_uuid: str, messages: List[AddChatMessageRequest]
+):
+    async with get_new_db_connection() as conn:
+        cursor = await conn.cursor()
+
+        for message in messages:
+            await cursor.execute(
+                f"INSERT INTO {chat_history_table_name} (action_id, role, content, response_type) VALUES ((SELECT id FROM {actions_table_name} WHERE uuid = ?), ?, ?, ?)",
+                (action_uuid, message.role, message.content, message.response_type),
+            )
+
+        await conn.commit()
+
+        return await get_action_chat_history(action_uuid)

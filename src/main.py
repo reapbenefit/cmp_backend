@@ -1,4 +1,4 @@
-import json
+from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRouter
@@ -10,6 +10,11 @@ from models import (
     CreateCommunityRequest,
     UserCommunity,
     UpdateUserProfileRequest,
+    CreateActionRequest,
+    Action,
+    ChatMessage,
+    ChatSession,
+    AddChatMessageRequest,
 )
 from settings import settings
 from pydantic import BaseModel, Field
@@ -21,6 +26,10 @@ from db import (
     get_user_portfolio,
     create_community_for_user,
     update_user_profile_for_user,
+    create_action_for_user,
+    get_action_chat_history,
+    add_messages_to_action_history,
+    get_all_chat_sessions_for_user,
 )
 from llm import stream_llm_with_instructor
 
@@ -57,10 +66,10 @@ async def signup(request: SignupUserRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/portfolio/{user_id}")
-async def get_portfolio(user_id: int) -> Portfolio:
+@app.get("/portfolio/{username}")
+async def get_portfolio(username: str) -> Portfolio:
     try:
-        return await get_user_portfolio(user_id=user_id)
+        return await get_user_portfolio(username=username)
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -73,11 +82,45 @@ async def create_community(request: CreateCommunityRequest) -> UserCommunity:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.put("/users/{user_id}")
+@app.put("/users/{username}")
 async def update_user_profile(
-    user_id: int, request: UpdateUserProfileRequest
+    username: str, request: UpdateUserProfileRequest
 ) -> Portfolio:
     try:
-        return await update_user_profile_for_user(user_id, request)
+        return await update_user_profile_for_user(username, request)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/actions")
+async def create_action(request: CreateActionRequest) -> Action:
+    try:
+        return await create_action_for_user(request)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/chat_history/{action_uuid}")
+async def get_chat_history_for_action(action_uuid: str) -> List[ChatMessage]:
+    try:
+        return await get_action_chat_history(action_uuid)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/chat_history/")
+async def get_all_chats_for_user(user_id: int) -> List[ChatSession]:
+    try:
+        return await get_all_chat_sessions_for_user(user_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/chat_messages/{action_uuid}")
+async def add_chat_messages_for_action(
+    action_uuid: str, messages: List[AddChatMessageRequest]
+):
+    try:
+        return await add_messages_to_action_history(action_uuid, messages)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel
 from typing import List
@@ -173,3 +174,36 @@ class UpdateUserProfileRequest(BaseModel):
     bio: str | None = None
     location_state: str | None = None
     location_city: str | None = None
+
+
+class CreateActionRequest(BaseModel):
+    user_id: int
+    title: str | None = None
+    user_message: str | None = None
+
+
+class Action(BaseModel):
+    id: int
+    uuid: str
+    title: str | None = None
+    description: str | None = None
+    status: str
+    is_verified: bool
+    created_at: datetime
+
+
+class AddChatMessageRequest(BaseModel):
+    role: ChatRole
+    content: str
+    response_type: str
+
+
+class ChatMessage(AddChatMessageRequest):
+    id: int
+    created_at: datetime
+
+
+class ChatSession(BaseModel):
+    uuid: str
+    title: str
+    last_message_time: datetime
