@@ -638,6 +638,16 @@ async def update_action_for_user(action_uuid: str, request: UpdateActionRequest)
         return await get_action_for_user(action_id)
 
 
+async def has_skills():
+    async with get_new_db_connection() as conn:
+        cursor = await conn.cursor()
+
+        result = await cursor.execute(
+            f"SELECT COUNT(*) FROM {skills_table_name}",
+        )
+        return (await result.fetchone())[0] > 0
+
+
 async def seed_skills():
     async with get_new_db_connection() as conn:
         cursor = await conn.cursor()

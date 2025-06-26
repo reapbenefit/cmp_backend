@@ -21,6 +21,11 @@ PHOENIX_ENDPOINT=your_phoenix_endpoint (optional, only required if you add [auth
 ENV=development (optional, defaults to development)
 ```
 
+- Initialize the database
+```bash
+python init.py
+```
+
 ## Running it locally
 
 ```bash
