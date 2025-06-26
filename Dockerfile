@@ -38,4 +38,4 @@ WORKDIR /app/src
 
 # Use the entrypoint script
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["sh", "-c", "python init_db.py && uvicorn main:app --host 0.0.0.0 --port 8001"]
+CMD ["sh", "-c", "python init.py && uvicorn main:app --host 0.0.0.0 --port 8001"]
