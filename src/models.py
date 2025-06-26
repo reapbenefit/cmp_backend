@@ -1,5 +1,6 @@
 from enum import Enum
 from pydantic import BaseModel
+from typing import List
 
 
 class ChatRole(str, Enum):
@@ -123,3 +124,52 @@ class ActionCategory(str, Enum):
             return self.value == other
 
         return False
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class BaseUser(BaseModel):
+    first_name: str
+    last_name: str
+    username: str
+    email: str
+
+
+class SignupUserRequest(BaseUser):
+    password: str
+
+
+class User(BaseUser):
+    id: int
+
+
+class UserCommunity(BaseModel):
+    id: int
+    name: str
+    description: str
+    link: str | None = None
+
+
+class Portfolio(User):
+    is_verified: bool
+    bio: str | None = None
+    location_state: str | None = None
+    location_city: str | None = None
+    location_country: str | None = None
+    communities: List[UserCommunity] | None = None
+
+
+class CreateCommunityRequest(BaseModel):
+    name: str
+    description: str
+    link: str | None = None
+    user_id: int
+
+
+class UpdateUserProfileRequest(BaseModel):
+    bio: str | None = None
+    location_state: str | None = None
+    location_city: str | None = None
