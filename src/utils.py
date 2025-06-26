@@ -31,7 +31,7 @@ def extract_skill_from_action_type(action_type: ActionType) -> str:
         ActionType.SHARING_ADDA,
         ActionType.URBAN_PLANNING,
     ]:
-        skills.append({"id": "citizenship"})
+        skills.append("citizenship")
 
     if action_type in [
         ActionType.ENGAGED_PEOPLE_THROUGH_SESSIONS,
@@ -45,7 +45,7 @@ def extract_skill_from_action_type(action_type: ActionType) -> str:
         ActionType.PROJECT_IDEA,
         ActionType.BUSINESS_PLAN,
     ]:
-        skills.append({"id": "communication"})
+        skills.append("communication")
 
     if action_type in [
         ActionType.CREATED_A_CAMPAIGN,
@@ -54,7 +54,7 @@ def extract_skill_from_action_type(action_type: ActionType) -> str:
         ActionType.ENGAGED_PEOPLE_THROUGH_SESSIONS,
         ActionType.ATTENDED_AN_OFFLINE_EVENT,
     ]:
-        skills.append({"id": "community_collaboration"})
+        skills.append("community_collaboration")
 
     if action_type in [
         ActionType.TECH_PROTOTYPE,
@@ -69,7 +69,7 @@ def extract_skill_from_action_type(action_type: ActionType) -> str:
         ActionType.PROJECT_IDEA,
         ActionType.BUSINESS_PLAN,
     ]:
-        skills.append({"id": "critical_thinking"})
+        skills.append("critical_thinking")
 
     if action_type in [
         ActionType.CROWDSOURCED_DATA,
@@ -79,7 +79,7 @@ def extract_skill_from_action_type(action_type: ActionType) -> str:
         ActionType.REPORTED_ISSUE,
         ActionType.AUDIT,
     ]:
-        skills.append({"id": "data_digital_citizenship"})
+        skills.append("data_digital_citizenship")
 
     if action_type in [
         ActionType.CROWDSOURCED_DATA,
@@ -88,7 +88,7 @@ def extract_skill_from_action_type(action_type: ActionType) -> str:
         ActionType.SOLVED_A_REAL_WORLD_PROBLEM,
         ActionType.PROJECT_IDEA,
     ]:
-        skills.append({"id": "empathy"})
+        skills.append("empathy")
 
     if action_type in [
         ActionType.TECH_PROTOTYPE,
@@ -98,7 +98,7 @@ def extract_skill_from_action_type(action_type: ActionType) -> str:
         ActionType.FOLLOWED_UP,
         ActionType.PROTOTYPE,
     ]:
-        skills.append({"id": "grit"})
+        skills.append("grit")
 
     if action_type in [
         ActionType.TECH_PROTOTYPE,
@@ -112,7 +112,7 @@ def extract_skill_from_action_type(action_type: ActionType) -> str:
         ActionType.SWACHHATA_LEAGUE_PARTICIPATION_2023,
         ActionType.OTHER_ACTIVITY,
     ]:
-        skills.append({"id": "hands_on"})
+        skills.append("hands_on")
 
     if action_type in [
         ActionType.CREATED_SOLUTION,
@@ -128,16 +128,13 @@ def extract_skill_from_action_type(action_type: ActionType) -> str:
         ActionType.PROJECT_IDEA,
         ActionType.BUSINESS_PLAN,
     ]:
-        skills.append({"id": "problem_solving"})
+        skills.append("problem_solving")
 
     if action_type in [
         ActionType.TECH_PROTOTYPE,
         ActionType.NON_TECH_PROTOTYPE,
         ActionType.BUSINESS_PLAN,
     ]:
-        skills.append({"id": "entrepreneurial"})
-
-    for skill in skills:
-        skill["name"] = skill_to_name[skill["id"]]
+        skills.append("entrepreneurial")
 
     return skills

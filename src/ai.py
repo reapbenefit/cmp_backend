@@ -8,12 +8,13 @@ from llm import stream_llm_with_instructor, run_llm_with_instructor
 from models import ChatResponse, ActionType, ActionCategory
 from settings import settings
 from utils import extract_skill_from_action_type
+from db import get_skills_data_from_names
 from openinference.instrumentation import using_attributes
 
 router = APIRouter()
 
 
-@router.post("/chat")
+@router.post("/ai/chat")
 async def action_chat(chat_history: list[ChatResponse]):
     class Output(BaseModel):
         response: str = Field(description="The response to be given to the student")
@@ -62,9 +63,15 @@ def transform_chat_history_to_prompt(chat_history: list[ChatResponse]) -> str:
     )
 
 
-@router.post("/extract")
+@router.post("/ai/extract")
 async def extract_metadata(chat_history: list[ChatResponse]):
     class Output(BaseModel):
+        action_title: str = Field(
+            description="A short title for the action (less than 5 words)"
+        )
+        action_description: str = Field(
+            description="A concise description of the action that the young person took (less than 50 words)"
+        )
         action_type: ActionType = Field(description="The type of the action")
         action_category: ActionCategory = Field(
             description="The category of the action"
@@ -73,7 +80,7 @@ async def extract_metadata(chat_history: list[ChatResponse]):
     parser = PydanticOutputParser(pydantic_object=Output)
     format_instructions = parser.get_format_instructions()
 
-    system_prompt = f"""Extract the action type and action category from the given conversation history of a young person describing their actions to solve a local civic problem. Use the provided lists to identify the correct action type and category.\n\n# Steps\n\n1. **Review the Conversation:** Thoroughly read the conversation history to understand the actions the young person has described.\n2. **Identify Action Type:** Determine the action type from the conversation, ensuring it aligns with one of the listed action types. Focus on specific verbs or phrases that indicate the nature of the activity.\n3. **Identify Action Category:** Determine the action category based on the topic or area addressed in the conversation. Use the given list to find the most suitable category.\n4. **Ensure Uniqueness:** Each task should conclude with one unique action type and one unique action category.\n\n### Output format\n\n{format_instructions}"""
+    system_prompt = f"""Extract the action type, action category, action title and action description from the given conversation history of a young person describing their actions to solve a local civic problem. Use the provided lists to identify the correct action type and category.\n\n# Steps\n\n1. **Review the Conversation:** Thoroughly read the conversation history to understand the actions the young person has described.\n2. **Identify Action Type:** Determine the action type from the conversation, ensuring it aligns with one of the listed action types. Focus on specific verbs or phrases that indicate the nature of the activity.\n3. **Identify Action Category:** Determine the action category based on the topic or area addressed in the conversation. Use the given list to find the most suitable category.\n4. **Ensure Uniqueness:** Each task should conclude with one unique action type and one unique action category.\n\n### Output format\n\n{format_instructions}"""
 
     chat_history_prompt = transform_chat_history_to_prompt(chat_history)
 
@@ -99,27 +106,28 @@ async def extract_metadata(chat_history: list[ChatResponse]):
         )
 
     skills = extract_skill_from_action_type(response.action_type)
+    skills = await get_skills_data_from_names(skills)
 
     class SkillRelevance(BaseModel):
         skill: str = Field(
             description="The skill whose relevance to the action needs to be described"
         )
         relevance: str = Field(
-            description="Description of how the skill is relevant to the action based on the chat history"
+            description="Concise description of how the skill is relevant to the action based on the chat history; no need to begin with 'The student' or 'The action'; directly describe the skill relevance"
         )
         response: str = Field(
             description="Description of the skill relevance addressed to the student"
         )
 
-    class Output(BaseModel):
+    class SkillRelevanceOutput(BaseModel):
         skill_relevances: list[SkillRelevance] = Field(
             description="The relevance of the skills to the action"
         )
 
-    parser = PydanticOutputParser(pydantic_object=Output)
+    parser = PydanticOutputParser(pydantic_object=SkillRelevanceOutput)
     format_instructions = parser.get_format_instructions()
 
-    system_prompt = f"""Analyze a student's action and the corresponding conversation history to provide a personalized, one-line description of how each listed skill is demonstrated in that context as 2 fields for each skill: `relevance`, for a person viewing the student's action; `response`, for the student.\n\nReview the conversation thoroughly and connect specific elements of it to the skills listed. Each description should clearly link an aspect of the conversation to the demonstration of a particular skill.\n\n# Examples\n\n**Example** (shortened for illustration purposes; real examples should detail specific parts of the conversation):\n- **Problem-Solving**: The student's question about alternative solutions shows proactive engagement.\n  \n- **Communication**: The clear explanation of their thought process demonstrates effective communication.\n\n- **Critical Thinking**: The student’s questioning of assumptions indicates critical evaluation of information.\n\n# Notes\n\nConsider nuances such as tone, clarity, and depth of the conversation that might subtly demonstrate skills. Each description should be crafted to reflect both the conversation content and the student’s unique expression of the skill.\n\n### Output format\n\n{format_instructions}"""
+    skill_relevance_system_prompt = f"""Analyze a student's action and the corresponding conversation history to provide a personalized, one-line description of how each listed skill is demonstrated in that context as 2 fields for each skill: `relevance`, for a person viewing the student's action; `response`, for the student.\n\nReview the conversation thoroughly and connect specific elements of it to the skills listed. Each description should clearly link an aspect of the conversation to the demonstration of a particular skill.\n\n# Examples\n\n**Example** (shortened for illustration purposes; real examples should detail specific parts of the conversation):\n- **Problem-Solving**: The student's question about alternative solutions shows proactive engagement.\n\n- **Communication**: The clear explanation of their thought process demonstrates effective communication.\n\n- **Critical Thinking**: The student’s questioning of assumptions indicates critical evaluation of information.\n\n# Notes\n\nConsider nuances such as tone, clarity, and depth of the conversation that might subtly demonstrate skills. Each description should be crafted to reflect both the conversation content and the student’s unique expression of the skill.\n\n### Output format\n\n{format_instructions}"""
 
     with using_attributes(
         metadata={"stage": "skill_relevance"},
@@ -131,18 +139,18 @@ async def extract_metadata(chat_history: list[ChatResponse]):
             messages=[
                 {
                     "role": "system",
-                    "content": system_prompt,
+                    "content": skill_relevance_system_prompt,
                 },
                 {
                     "role": "user",
-                    "content": f"Conversation history:\n```\n{chat_history_prompt}\n```\n\nSkills: {', '.join([skill['id'] for skill in skills])}",
+                    "content": f"Conversation history:\n```\n{chat_history_prompt}\n```\n\nSkills: {', '.join([skill['name'] for skill in skills])}",
                 },
             ],
-            response_model=Output,
+            response_model=SkillRelevanceOutput,
             max_completion_tokens=8096,
         )
 
-    skill_to_index = {skill["id"]: index for index, skill in enumerate(skills)}
+    skill_to_index = {skill["name"]: index for index, skill in enumerate(skills)}
 
     for skill_relevance in skill_relevance_response.skill_relevances:
         skills[skill_to_index[skill_relevance.skill]][
@@ -153,6 +161,8 @@ async def extract_metadata(chat_history: list[ChatResponse]):
         ] = skill_relevance.response
 
     return {
+        "action_title": response.action_title,
+        "action_description": response.action_description,
         "action_type": response.action_type,
         "action_category": response.action_category,
         "skills": skills,

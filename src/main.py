@@ -15,6 +15,7 @@ from models import (
     ChatMessage,
     ChatSession,
     AddChatMessageRequest,
+    UpdateActionRequest,
 )
 from settings import settings
 from pydantic import BaseModel, Field
@@ -30,6 +31,7 @@ from db import (
     get_action_chat_history,
     add_messages_to_action_history,
     get_all_chat_sessions_for_user,
+    update_action_for_user,
 )
 from llm import stream_llm_with_instructor
 
@@ -122,5 +124,13 @@ async def add_chat_messages_for_action(
 ):
     try:
         return await add_messages_to_action_history(action_uuid, messages)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.put("/actions/{action_uuid}")
+async def update_action(action_uuid: str, request: UpdateActionRequest) -> Action:
+    try:
+        return await update_action_for_user(action_uuid, request)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -1,3 +1,4 @@
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from typing import List
 import os
@@ -22,7 +23,10 @@ from models import (
     UpdateUserProfileRequest,
     CreateActionRequest,
     AddChatMessageRequest,
+    Skill,
+    UpdateActionRequest,
 )
+from utils import skill_to_name
 
 
 @asynccontextmanager
@@ -59,27 +63,26 @@ async def create_tables(cursor):
     """Create the necessary tables for the application"""
 
     # Create users table
-    # await cursor.execute(
-    #     f"""
-    #     CREATE TABLE IF NOT EXISTS {users_table_name} (
-    #         id INTEGER PRIMARY KEY AUTOINCREMENT,
-    #         first_name TEXT NOT NULL,
-    #         last_name TEXT NOT NULL,
-    #         username TEXT UNIQUE NOT NULL,
-    #         email TEXT UNIQUE NOT NULL,
-    #         password TEXT NOT NULL,
-    #         location_state TEXT,
-    #         location_city TEXT,
-    #         location_country TEXT,
-    #         profile_picture TEXT,
-    #         bio TEXT,
-    #         highlight TEXT,
-    #         is_verified BOOLEAN DEFAULT FALSE,
-    #         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    #     )
-    # """
-    # )
-
+    await cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {users_table_name} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            first_name TEXT NOT NULL,
+            last_name TEXT NOT NULL,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            location_state TEXT,
+            location_city TEXT,
+            location_country TEXT,
+            profile_picture TEXT,
+            bio TEXT,
+            highlight TEXT,
+            is_verified BOOLEAN DEFAULT FALSE,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """
+    )
     # Create actions table
     await cursor.execute(
         f"""
@@ -92,14 +95,12 @@ async def create_tables(cursor):
             status TEXT,
             is_verified BOOLEAN DEFAULT FALSE,
             is_pinned BOOLEAN DEFAULT FALSE,
-            category_id INTEGER,
-            type_id INTEGER,
+            category TEXT,
+            type TEXT,
             time_invested_value INTEGER,
             time_invested_unit TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id)
-            FOREIGN KEY (category_id) REFERENCES action_categories (id)
-            FOREIGN KEY (type_id) REFERENCES action_types (id)
         )
     """
     )
@@ -127,64 +128,59 @@ async def create_tables(cursor):
     )
 
     # Create communities table
-    # await cursor.execute(
-    #     f"""
-    #     CREATE TABLE IF NOT EXISTS {communities_table_name} (
-    #         id INTEGER PRIMARY KEY AUTOINCREMENT,
-    #         name TEXT NOT NULL,
-    #         description TEXT NOT NULL,
-    #         link TEXT,
-    #         user_id INTEGER NOT NULL,
-    #         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    #         FOREIGN KEY (user_id) REFERENCES users (id)
-    #     )
-    # """
-    # )
+    await cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {communities_table_name} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL,
+            link TEXT,
+            user_id INTEGER NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    """
+    )
+
+    # Create skills table
+    await cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {skills_table_name} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            label TEXT
+        )
+    """
+    )
 
     # Create action_skills table
-    # await cursor.execute(
-    #     f"""
-    #     CREATE TABLE IF NOT EXISTS {action_skills_table_name} (
-    #         action_id INTEGER NOT NULL,
-    #         skill_id INTEGER NOT NULL,
-    #         summary TEXT,
-    #         PRIMARY KEY (action_id, skill_id),
-    #         FOREIGN KEY (action_id) REFERENCES actions (id)
-    #     )
-    # """
-    # )
+    await cursor.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {action_skills_table_name} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            action_id INTEGER NOT NULL,
+            skill_id INTEGER NOT NULL,
+            summary TEXT,
+            FOREIGN KEY (action_id) REFERENCES actions (id),
+            FOREIGN KEY (skill_id) REFERENCES skills (id)
+        )
+    """
+    )
 
-    # # Create action_categories table
-    # await cursor.execute(
-    #     f"""
-    #     CREATE TABLE IF NOT EXISTS {action_categories_table_name} (
-    #         id INTEGER PRIMARY KEY AUTOINCREMENT,
-    #         name TEXT NOT NULL
-    #     )
-    # """
-    # )
+    # Create index on skill_id column for action_skills table
+    await cursor.execute(
+        f"""
+        CREATE INDEX IF NOT EXISTS idx_action_skills_skill_id ON {action_skills_table_name} (skill_id)
+    """
+    )
 
-    # # Create action_types table
-    # await cursor.execute(
-    #     f"""
-    #     CREATE TABLE IF NOT EXISTS {action_types_table_name} (
-    #         id INTEGER PRIMARY KEY AUTOINCREMENT,
-    #         name TEXT NOT NULL
-    #     )
-    # """
-    # )
-
-    # # Create skills table
-    # await cursor.execute(
-    #     f"""
-    #     CREATE TABLE IF NOT EXISTS {skills_table_name} (
-    #         id INTEGER PRIMARY KEY AUTOINCREMENT,
-    #         name TEXT NOT NULL,
-    #         description TEXT,
-    #         icon TEXT
-    #     )
-    # """
-    # )
+    # Create index on action_id column for action_skills table
+    await cursor.execute(
+        f"""
+        CREATE INDEX IF NOT EXISTS idx_action_skills_action_id ON {action_skills_table_name} (action_id)
+    """
+    )
 
 
 async def init_db():
@@ -308,6 +304,97 @@ async def get_user_portfolio(username: str):
             for community in communities
         ]
 
+        actions_result = await cursor.execute(
+            f"""
+            SELECT a.id, a.uuid, a.title, a.description, a.is_verified, a.is_pinned, a.category, a.type, a.created_at
+            FROM {actions_table_name} a
+            WHERE a.user_id = ? AND a.status = 'published'
+            ORDER BY a.created_at DESC
+            """,
+            (user[0],),
+        )
+        actions_data = await actions_result.fetchall()
+
+        actions = []
+        skill_id_to_data = {}
+
+        for action_data in actions_data:
+            action_id = action_data[0]
+
+            skills_result = await cursor.execute(
+                f"""
+                SELECT s.id, s.name, s.label, acs.summary
+                FROM {action_skills_table_name} acs
+                INNER JOIN {skills_table_name} s ON acs.skill_id = s.id
+                WHERE acs.action_id = ?
+                ORDER BY s.name ASC
+                """,
+                (action_id,),
+            )
+
+            skills_data = await skills_result.fetchall()
+
+            skills = [
+                {
+                    "id": skill[0],
+                    "name": skill[1],
+                    "label": skill[2],
+                    "summary": skill[3],
+                }
+                for skill in skills_data
+            ]
+
+            for skill in skills:
+                if skill["id"] not in skill_id_to_data:
+                    skill_id_to_data[skill["id"]] = {
+                        "id": skill["id"],
+                        "name": skill["name"],
+                        "label": skill["label"],
+                        "history": [],
+                    }
+
+                skill_id_to_data[skill["id"]]["history"].append(
+                    {"action_title": action_data[2], "summary": skill["summary"]}
+                )
+
+            chat_history_result = await cursor.execute(
+                f"SELECT id, role, content, response_type, created_at FROM {chat_history_table_name} WHERE action_id = ?",
+                (action_id,),
+            )
+            chat_history_data = await chat_history_result.fetchall()
+
+            chat_history = [
+                {
+                    "id": chat[0],
+                    "role": chat[1],
+                    "content": chat[2],
+                    "response_type": chat[3],
+                    "created_at": chat[4],
+                }
+                for chat in chat_history_data
+                if chat[1] in ["user", "assistant"]
+            ]
+
+            action = {
+                "id": action_data[0],
+                "uuid": action_data[1],
+                "title": action_data[2],
+                "description": action_data[3],
+                "is_verified": action_data[4],
+                "is_pinned": action_data[5],
+                "category": action_data[6],
+                "type": action_data[7],
+                "created_at": action_data[8],
+                "skills": skills,
+                "chat_history": chat_history,
+            }
+            actions.append(action)
+
+        skills = []
+
+        for _, data in skill_id_to_data.items():
+            skills.append(data)
+
         return {
             "id": user[0],
             "first_name": user[1],
@@ -320,6 +407,8 @@ async def get_user_portfolio(username: str):
             "location_city": user[8],
             "location_country": user[9],
             "communities": communities,
+            "actions": actions,
+            "skills": skills,
         }
 
 
@@ -374,7 +463,7 @@ async def get_action_for_user(action_id: int):
         cursor = await conn.cursor()
 
         result = await cursor.execute(
-            f"SELECT id, uuid, title, description, status, is_verified, created_at FROM {actions_table_name} WHERE id = ?",
+            f"SELECT id, uuid, title, description, status, is_verified, created_at, category, type FROM {actions_table_name} WHERE id = ?",
             (action_id,),
         )
 
@@ -390,6 +479,8 @@ async def get_action_for_user(action_id: int):
             "status": action[4],
             "is_verified": action[5],
             "created_at": action[6],
+            "category": action[7],
+            "type": action[8],
         }
 
 
@@ -413,7 +504,7 @@ async def create_action_for_user(action: CreateActionRequest):
 
         await conn.commit()
 
-        return await get_action_for_user(cursor.lastrowid)
+        return await get_action_for_user(action_id)
 
 
 async def get_action_chat_history(action_uuid: str):
@@ -482,3 +573,82 @@ async def add_messages_to_action_history(
         await conn.commit()
 
         return await get_action_chat_history(action_uuid)
+
+
+async def get_skills_data_from_names(skill_names: List[str]) -> List[Skill]:
+    async with get_new_db_connection() as conn:
+        cursor = await conn.cursor()
+
+        result = await cursor.execute(
+            f"SELECT id, name, label FROM {skills_table_name} WHERE name IN ({', '.join([f'?' for _ in skill_names])})",
+            skill_names,
+        )
+
+        skills = await result.fetchall()
+
+        return [
+            {
+                "id": skill[0],
+                "name": skill[1],
+                "label": skill[2],
+            }
+            for skill in skills
+        ]
+
+
+async def update_action_for_user(action_uuid: str, request: UpdateActionRequest):
+    async with get_new_db_connection() as conn:
+        cursor = await conn.cursor()
+
+        action_id = await cursor.execute(
+            f"SELECT id FROM {actions_table_name} WHERE uuid = ?",
+            (action_uuid,),
+        )
+        action_id = (await action_id.fetchone())[0]
+
+        await cursor.execute(
+            f"UPDATE {actions_table_name} SET title = ?, description = ?, status = ?, category = ?, type = ? WHERE id = ?",
+            (
+                request.title,
+                request.description,
+                request.status,
+                request.category,
+                request.type,
+                action_id,
+            ),
+        )
+
+        if request.skills:
+            await cursor.execute(
+                f"DELETE FROM {action_skills_table_name} WHERE action_id = ?",
+                (action_id,),
+            )
+
+            values = []
+            for skill in request.skills:
+                values.append((action_id, skill.id, skill.summary))
+
+            await cursor.executemany(
+                f"INSERT INTO {action_skills_table_name} (action_id, skill_id, summary) VALUES (?, ?, ?)",
+                values,
+            )
+
+        await conn.commit()
+
+        return await get_action_for_user(action_id)
+
+
+async def seed_skills():
+    async with get_new_db_connection() as conn:
+        cursor = await conn.cursor()
+
+        values = []
+        for skill_name, skill_label in skill_to_name.items():
+            values.append((skill_name, skill_label))
+
+        await cursor.executemany(
+            f"INSERT INTO {skills_table_name} (name, label) VALUES (?, ?)",
+            values,
+        )
+
+        await conn.commit()

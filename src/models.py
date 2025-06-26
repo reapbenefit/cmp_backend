@@ -1,12 +1,13 @@
 from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 
 class ChatRole(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
+    ANALYSIS = "analysis"
 
 
 class ChatResponse(BaseModel):
@@ -154,15 +155,6 @@ class UserCommunity(BaseModel):
     link: str | None = None
 
 
-class Portfolio(User):
-    is_verified: bool
-    bio: str | None = None
-    location_state: str | None = None
-    location_city: str | None = None
-    location_country: str | None = None
-    communities: List[UserCommunity] | None = None
-
-
 class CreateCommunityRequest(BaseModel):
     name: str
     description: str
@@ -182,16 +174,6 @@ class CreateActionRequest(BaseModel):
     user_message: str | None = None
 
 
-class Action(BaseModel):
-    id: int
-    uuid: str
-    title: str | None = None
-    description: str | None = None
-    status: str
-    is_verified: bool
-    created_at: datetime
-
-
 class AddChatMessageRequest(BaseModel):
     role: ChatRole
     content: str
@@ -207,3 +189,57 @@ class ChatSession(BaseModel):
     uuid: str
     title: str
     last_message_time: datetime
+
+
+class Skill(BaseModel):
+    id: int
+    name: str
+    label: str
+
+
+class SkillHistoryEvent(BaseModel):
+    action_title: str
+    summary: str
+
+
+class SkillHistory(Skill):
+    history: List[SkillHistoryEvent]
+
+
+class ActionSkill(Skill):
+    summary: str
+
+
+class Action(BaseModel):
+    id: int
+    uuid: str
+    title: str | None = None
+    description: str | None = None
+    status: Optional[str] = None
+    is_verified: bool
+    is_pinned: Optional[bool] = None
+    category: Optional[str] = None
+    type: Optional[str] = None
+    created_at: datetime
+    skills: Optional[List[ActionSkill]] = None
+    chat_history: Optional[List[ChatMessage]] = None
+
+
+class Portfolio(User):
+    is_verified: bool
+    bio: str | None = None
+    location_state: str | None = None
+    location_city: str | None = None
+    location_country: str | None = None
+    communities: List[UserCommunity] | None = None
+    actions: List[Action] | None = None
+    skills: List[SkillHistory] | None = None
+
+
+class UpdateActionRequest(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    status: Optional[str] = None
+    category: Optional[str] = None
+    type: Optional[str] = None
+    skills: Optional[List[ActionSkill]] = None
