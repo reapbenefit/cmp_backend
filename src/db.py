@@ -281,7 +281,7 @@ async def get_user_portfolio(username: str):
         cursor = await conn.cursor()
 
         result = await cursor.execute(
-            f"SELECT id, first_name, last_name, username, email, is_verified, bio, location_state, location_city, location_country FROM {users_table_name} WHERE username = ?",
+            f"SELECT id, first_name, last_name, username, email, is_verified, bio, location_state, location_city, location_country, highlight FROM {users_table_name} WHERE username = ?",
             (username,),
         )
 
@@ -406,6 +406,7 @@ async def get_user_portfolio(username: str):
             "location_state": user[7],
             "location_city": user[8],
             "location_country": user[9],
+            "highlight": user[10],
             "communities": communities,
             "actions": actions,
             "skills": skills,

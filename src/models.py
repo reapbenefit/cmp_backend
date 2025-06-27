@@ -231,6 +231,7 @@ class Portfolio(User):
     location_state: str | None = None
     location_city: str | None = None
     location_country: str | None = None
+    highlight: str | None = None
     communities: List[UserCommunity] | None = None
     actions: List[Action] | None = None
     skills: List[SkillHistory] | None = None
