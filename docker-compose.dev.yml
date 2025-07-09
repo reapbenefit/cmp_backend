@@ -10,6 +10,9 @@ services:
       - PHOENIX_API_KEY=${PHOENIX_API_KEY}
       - PHOENIX_ENDPOINT=${PHOENIX_ENDPOINT}
       - ENV=${ENV}
+      - FRAPPE_BACKEND_BASE_URL=${FRAPPE_BACKEND_BASE_URL}
+      - FRAPPE_BACKEND_CLIENT_ID=${FRAPPE_BACKEND_CLIENT_ID}
+      - FRAPPE_BACKEND_CLIENT_SECRET=${FRAPPE_BACKEND_CLIENT_SECRET}
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8001/docs" ]
