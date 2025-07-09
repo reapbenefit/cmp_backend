@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     openai_api_key: str
     phoenix_api_key: str
     phoenix_endpoint: str
+    frappe_backend_base_url: str
+    frappe_backend_client_id: str
+    frappe_backend_client_secret: str
     env: str
 
     class Config:

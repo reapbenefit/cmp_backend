@@ -464,13 +464,36 @@ async def get_action_for_user(action_id: int):
         cursor = await conn.cursor()
 
         result = await cursor.execute(
-            f"SELECT id, uuid, title, description, status, is_verified, created_at, category, type FROM {actions_table_name} WHERE id = ?",
+            f"SELECT a.id, a.uuid, a.title, a.description, a.status, a.is_verified, a.created_at, a.category, a.type, a.user_id, u.email FROM {actions_table_name} a INNER JOIN {users_table_name} u ON a.user_id = u.id WHERE a.id = ?",
             (action_id,),
         )
 
         action = await result.fetchone()
         if not action:
             raise Exception("Action not found")
+
+        skills_result = await cursor.execute(
+            f"""
+            SELECT s.id, s.name, s.label, acs.summary
+            FROM {action_skills_table_name} acs
+            INNER JOIN {skills_table_name} s ON acs.skill_id = s.id
+            WHERE acs.action_id = ?
+            ORDER BY s.name ASC
+            """,
+            (action_id,),
+        )
+
+        skills_data = await skills_result.fetchall()
+
+        skills = [
+            {
+                "id": skill[0],
+                "name": skill[1],
+                "label": skill[2],
+                "summary": skill[3],
+            }
+            for skill in skills_data
+        ]
 
         return {
             "id": action[0],
@@ -482,6 +505,11 @@ async def get_action_for_user(action_id: int):
             "created_at": action[6],
             "category": action[7],
             "type": action[8],
+            "user": {
+                "id": action[9],
+                "email": action[10],
+            },
+            "skills": skills,
         }
 
 

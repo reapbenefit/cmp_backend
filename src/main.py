@@ -33,6 +33,7 @@ from db import (
     get_all_chat_sessions_for_user,
     update_action_for_user,
 )
+from frappe import create_action_on_frappe
 from llm import stream_llm_with_instructor
 
 app = FastAPI()
@@ -131,6 +132,8 @@ async def add_chat_messages_for_action(
 @app.put("/actions/{action_uuid}")
 async def update_action(action_uuid: str, request: UpdateActionRequest) -> Action:
     try:
-        return await update_action_for_user(action_uuid, request)
+        action = await update_action_for_user(action_uuid, request)
+        await create_action_on_frappe(action["id"])
+        return action
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
