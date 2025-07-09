@@ -691,3 +691,53 @@ async def seed_skills():
         )
 
         await conn.commit()
+
+
+async def update_skill_label(skill_id: int, label: str):
+    async with get_new_db_connection() as conn:
+        cursor = await conn.cursor()
+
+        await cursor.execute(
+            f"UPDATE {skills_table_name} SET label = ? WHERE id = ?",
+            (label, skill_id),
+        )
+
+        await conn.commit()
+
+
+async def delete_last_non_user_messages_from_chat_history(action_id: int):
+    async with get_new_db_connection() as conn:
+        cursor = await conn.cursor()
+
+        # Delete the most recent non-user messages for the given action_id,
+        # but if the most recent message is from the user, do nothing.
+        result = await cursor.execute(
+            f"SELECT id, role FROM {chat_history_table_name} WHERE action_id = ? ORDER BY id DESC",
+            (action_id,),
+        )
+        rows = await result.fetchall()
+        if rows:
+            # If the most recent message is from the user, do nothing
+            if rows[0][1] == "user":
+                pass
+            else:
+                # Otherwise, delete the most recent ai and analysis messages (if present)
+                ai_deleted = False
+                analysis_deleted = False
+                for row in rows:
+                    if not ai_deleted and row[1] == "assistant":
+                        await cursor.execute(
+                            f"DELETE FROM {chat_history_table_name} WHERE id = ?",
+                            (row[0],),
+                        )
+                        ai_deleted = True
+                    elif not analysis_deleted and row[1] == "analysis":
+                        await cursor.execute(
+                            f"DELETE FROM {chat_history_table_name} WHERE id = ?",
+                            (row[0],),
+                        )
+                        analysis_deleted = True
+                    if ai_deleted and analysis_deleted:
+                        break
+
+        await conn.commit()
