@@ -1,6 +1,6 @@
 from collections import defaultdict
 from contextlib import asynccontextmanager
-from typing import List
+from typing import List, Dict
 import os
 from os.path import exists
 import sqlite3
@@ -71,7 +71,6 @@ async def create_tables(cursor):
             last_name TEXT NOT NULL,
             username TEXT UNIQUE NOT NULL,
             email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
             location_state TEXT,
             location_city TEXT,
             location_country TEXT,
@@ -207,55 +206,66 @@ async def init_db():
             raise exception
 
 
-async def verify_user_credentials(email: str, password: str) -> bool:
-    """Verify user credentials against the database."""
+async def get_user_id_by_email(email: str) -> int:
     async with get_new_db_connection() as conn:
         cursor = await conn.cursor()
 
         result = await cursor.execute(
-            f"SELECT id, username, first_name, last_name, email FROM {users_table_name} WHERE email = ? AND password = ?",
-            (email, password),
+            f"SELECT id FROM {users_table_name} WHERE email = ?",
+            (email,),
         )
-        user_record = await result.fetchone()
-
-        if user_record:
-            return {
-                "id": user_record[0],
-                "username": user_record[1],
-                "first_name": user_record[2],
-                "last_name": user_record[3],
-                "email": user_record[4],
-            }
+        user = await result.fetchone()
+        if user:
+            return user[0]
 
         return None
 
 
-async def create_user(user: SignupUserRequest):
+# async def verify_user_credentials(email: str, password: str) -> bool:
+#     """Verify user credentials against the database."""
+#     async with get_new_db_connection() as conn:
+#         cursor = await conn.cursor()
+
+#         result = await cursor.execute(
+#             f"SELECT id, username, first_name, last_name, email FROM {users_table_name} WHERE email = ? AND password = ?",
+#             (email, password),
+#         )
+#         user_record = await result.fetchone()
+
+#         if user_record:
+#             return {
+#                 "id": user_record[0],
+#                 "username": user_record[1],
+#                 "first_name": user_record[2],
+#                 "last_name": user_record[3],
+#                 "email": user_record[4],
+#             }
+
+#         return None
+
+
+async def create_user(user: Dict):
     """Create a new user in the database."""
     async with get_new_db_connection() as conn:
         cursor = await conn.cursor()
 
-        # Check if username already exists
-        result = await cursor.execute(
-            f"SELECT id FROM {users_table_name} WHERE username = ?",
-            (user.username,),
-        )
-        existing_username = await result.fetchone()
-        if existing_username:
-            raise Exception("Username already exists")
-
         # Check if email already exists
         result = await cursor.execute(
             f"SELECT id FROM {users_table_name} WHERE email = ?",
-            (user.email,),
+            (user["email"],),
         )
         existing_email = await result.fetchone()
         if existing_email:
             raise Exception("Email already exists")
 
         await cursor.execute(
-            f"INSERT INTO {users_table_name} (email, password, first_name, last_name, username) VALUES (?, ?, ?, ?, ?)",
-            (user.email, user.password, user.first_name, user.last_name, user.username),
+            f"INSERT INTO {users_table_name} (email, first_name, last_name, username) VALUES (?, ?, ?, ?)",
+            (
+                user["email"],
+                user["first_name"],
+                user["last_name"],
+                user["username"],
+            ),
         )
 
         await conn.commit()

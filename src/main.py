@@ -22,7 +22,6 @@ from pydantic import BaseModel, Field
 from langchain_core.output_parsers import PydanticOutputParser
 from ai import router
 from db import (
-    verify_user_credentials,
     create_user,
     get_user_portfolio,
     create_community_for_user,
@@ -32,8 +31,9 @@ from db import (
     add_messages_to_action_history,
     get_all_chat_sessions_for_user,
     update_action_for_user,
+    get_user_id_by_email,
 )
-from frappe import create_action_on_frappe
+from frappe import create_action_on_frappe, login_user
 from llm import stream_llm_with_instructor
 
 app = FastAPI()
@@ -53,20 +53,49 @@ app.add_middleware(
 
 @app.post("/login")
 async def login(request: LoginRequest):
-    verified_user = await verify_user_credentials(request.email, request.password)
-    if verified_user:
-        return verified_user
+    response = login_user(request.email, request.password)
 
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+    if response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    cookies = response.cookies
+    response = response.json()
+
+    user_id = await get_user_id_by_email(request.email)
+
+    if user_id is None:
+        name_parts = response["full_name"].split(" ")
+        first_name = name_parts[0]
+        last_name = ""
+
+        if len(name_parts) > 1:
+            last_name = name_parts[-1]
+
+        new_user = await create_user(
+            {
+                "email": request.email,
+                "first_name": first_name,
+                "last_name": last_name,
+                "username": request.email,
+            }
+        )
+        user_id = new_user["id"]
+
+    return {
+        "name": response["full_name"],
+        "id": user_id,
+        "email": request.email,
+        "sid": cookies["sid"],
+    }
 
 
-@app.post("/signup")
-async def signup(request: SignupUserRequest):
-    try:
-        new_user = await create_user(request)
-        return new_user
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+# @app.post("/signup")
+# async def signup(request: SignupUserRequest):
+#     try:
+#         new_user = await create_user(request)
+#         return new_user
+#     except Exception as e:
+#         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/portfolio/{username}")

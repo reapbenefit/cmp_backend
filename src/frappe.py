@@ -2,6 +2,36 @@ import requests
 import json
 from settings import settings
 from db import get_action_for_user
+from fastapi import HTTPException
+
+
+def login_user(email: str, password: str):
+    url = f"{settings.frappe_backend_base_url}/method/login"
+
+    payload = json.dumps({"usr": email, "pwd": password})
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    return requests.request("POST", url, headers=headers, data=payload)
+
+
+def get_user_profile(email: str):
+    url = f"{settings.frappe_backend_base_url}/method/solve_ninja.api.profile.get_user_profile"
+
+    payload = json.dumps({"username": email})
+
+    headers = {
+        "Authorization": f"token {settings.frappe_backend_client_id}:{settings.frappe_backend_client_secret}",
+        "Content-Type": "application/json",
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return response.json()["message"]
 
 
 async def create_action_on_frappe(action_id: int):
