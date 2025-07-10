@@ -166,3 +166,8 @@ async def update_action(action_uuid: str, request: UpdateActionRequest) -> Actio
         return action
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.api_route("/health", methods=["GET", "HEAD"])
+async def health_check():
+    return {"status": "ok"}
