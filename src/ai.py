@@ -5,7 +5,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import PydanticOutputParser
 from llm import stream_llm_with_instructor, run_llm_with_instructor
-from models import ChatResponse, ActionType, ActionCategory
+from models import (
+    ChatResponse,
+    ActionType,
+    ActionCategory,
+    AIActionMetadataResponse,
+    AIChatResponse,
+)
 from settings import settings
 from utils import extract_skill_from_action_type
 from db import get_skills_data_from_names
@@ -14,7 +20,7 @@ from openinference.instrumentation import using_attributes
 router = APIRouter()
 
 
-@router.post("/ai/chat")
+@router.post("/ai/chat", response_model=AIChatResponse)
 async def action_chat(chat_history: list[ChatResponse]):
     class Output(BaseModel):
         response: str = Field(description="The response to be given to the student")
@@ -63,7 +69,7 @@ def transform_chat_history_to_prompt(chat_history: list[ChatResponse]) -> str:
     )
 
 
-@router.post("/ai/extract")
+@router.post("/ai/extract", response_model=AIActionMetadataResponse)
 async def extract_metadata(chat_history: list[ChatResponse]):
     class Output(BaseModel):
         action_title: str = Field(

@@ -207,7 +207,8 @@ class SkillHistory(Skill):
 
 
 class ActionSkill(Skill):
-    summary: str
+    relevance: str
+    response: Optional[str] = None
 
 
 class Action(BaseModel):
@@ -244,3 +245,16 @@ class UpdateActionRequest(BaseModel):
     category: Optional[str] = None
     type: Optional[str] = None
     skills: Optional[List[ActionSkill]] = None
+
+
+class AIActionMetadataResponse(BaseModel):
+    action_title: str
+    action_description: str
+    action_type: str
+    action_category: str
+    skills: List[ActionSkill]
+
+
+class AIChatResponse(BaseModel):
+    response: str
+    is_done: bool
