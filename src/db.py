@@ -26,6 +26,7 @@ from models import (
     Skill,
     UpdateActionRequest,
 )
+from frappe import add_message_to_chat_history
 from utils import skill_to_name
 
 
@@ -537,11 +538,24 @@ async def create_action_for_user(action: CreateActionRequest):
         action_id = cursor.lastrowid
 
         await cursor.execute(
+            f"SELECT email FROM {users_table_name} WHERE id = ?",
+            (action.user_id,),
+        )
+        user_email = (await user_email.fetchone())[0]
+
+        role = "user"
+        response_type = "text"
+
+        await cursor.execute(
             f"INSERT INTO {chat_history_table_name} (action_id, role, content, response_type) VALUES (?, ?, ?, ?)",
-            (action_id, "user", action.user_message, "text"),
+            (action_id, role, action.user_message, response_type),
         )
 
         await conn.commit()
+
+        await add_message_to_chat_history(
+            action_uuid, user_email, role, action.user_message, response_type
+        )
 
         return await get_action_for_user(action_id)
 
@@ -603,10 +617,24 @@ async def add_messages_to_action_history(
     async with get_new_db_connection() as conn:
         cursor = await conn.cursor()
 
+        await cursor.execute(
+            f"SELECT u.email FROM {actions_table_name} a INNER JOIN {users_table_name} u ON a.user_id = u.id WHERE a.uuid = ?",
+            (action_uuid,),
+        )
+        user_email = (await user_email.fetchone())[0]
+
         for message in messages:
             await cursor.execute(
                 f"INSERT INTO {chat_history_table_name} (action_id, role, content, response_type) VALUES ((SELECT id FROM {actions_table_name} WHERE uuid = ?), ?, ?, ?)",
                 (action_uuid, message.role, message.content, message.response_type),
+            )
+
+            await add_message_to_chat_history(
+                action_uuid,
+                user_email,
+                message.role,
+                message.content,
+                message.response_type,
             )
 
         await conn.commit()

@@ -136,7 +136,13 @@ async def extract_metadata(chat_history: list[ChatResponse]):
     skill_relevance_system_prompt = f"""Analyze a student's action and the corresponding conversation history to provide a personalized, one-line description of how each listed skill is demonstrated in that context as 2 fields for each skill: `relevance`, for a person viewing the student's action; `response`, for the student.\n\nReview the conversation thoroughly and connect specific elements of it to the skills listed. Each description should clearly link an aspect of the conversation to the demonstration of a particular skill.\n\n# Examples\n\n**Example** (shortened for illustration purposes; real examples should detail specific parts of the conversation):\n- **Problem-Solving**: The student's question about alternative solutions shows proactive engagement.\n\n- **Communication**: The clear explanation of their thought process demonstrates effective communication.\n\n- **Critical Thinking**: The student’s questioning of assumptions indicates critical evaluation of information.\n\n# Notes\n\nConsider nuances such as tone, clarity, and depth of the conversation that might subtly demonstrate skills. Each description should be crafted to reflect both the conversation content and the student’s unique expression of the skill.\n\n### Output format\n\n{format_instructions}"""
 
     with using_attributes(
-        metadata={"stage": "skill_relevance"},
+        metadata={
+            "stage": "skill_relevance",
+            "action_type": response.action_type,
+            "action_category": response.action_category,
+            "action_title": response.action_title,
+            "action_description": response.action_description,
+        },
     ):
         skill_relevance_response = await run_llm_with_instructor(
             api_key=settings.openai_api_key,

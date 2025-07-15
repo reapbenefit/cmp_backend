@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     frappe_backend_client_id: str
     frappe_backend_client_secret: str
     env: str
+    database_url: str
 
     class Config:
         env_file = ".env"
