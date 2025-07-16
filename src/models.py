@@ -207,7 +207,7 @@ class SkillHistory(Skill):
 
 
 class ActionSkill(Skill):
-    relevance: str
+    relevance: Optional[str] = None
     response: Optional[str] = None
 
 

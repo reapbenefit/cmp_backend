@@ -17,6 +17,7 @@ from models import (
     AddChatMessageRequest,
     UpdateActionRequest,
 )
+import traceback
 from settings import settings
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import PydanticOutputParser
@@ -129,6 +130,7 @@ async def create_action(request: CreateActionRequest) -> Action:
     try:
         return await create_action_for_user(request)
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -165,6 +167,7 @@ async def update_action(action_uuid: str, request: UpdateActionRequest) -> Actio
         await create_action_on_frappe(action["id"], action_uuid)
         return action
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 

@@ -541,7 +541,7 @@ async def create_action_for_user(action: CreateActionRequest):
             f"SELECT email FROM {users_table_name} WHERE id = ?",
             (action.user_id,),
         )
-        user_email = (await user_email.fetchone())[0]
+        user_email = (await cursor.fetchone())[0]
 
         role = "user"
         response_type = "text"
@@ -621,7 +621,7 @@ async def add_messages_to_action_history(
             f"SELECT u.email FROM {actions_table_name} a INNER JOIN {users_table_name} u ON a.user_id = u.id WHERE a.uuid = ?",
             (action_uuid,),
         )
-        user_email = (await user_email.fetchone())[0]
+        user_email = (await cursor.fetchone())[0]
 
         for message in messages:
             await cursor.execute(
@@ -693,7 +693,7 @@ async def update_action_for_user(action_uuid: str, request: UpdateActionRequest)
 
             values = []
             for skill in request.skills:
-                values.append((action_id, skill.id, skill.summary))
+                values.append((action_id, skill.id, skill.relevance))
 
             await cursor.executemany(
                 f"INSERT INTO {action_skills_table_name} (action_id, skill_id, summary) VALUES (?, ?, ?)",

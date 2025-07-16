@@ -31,6 +31,11 @@ async def add_message_to_chat_history(
 
     response = requests.request("POST", url, headers=headers, data=payload)
 
+    if response.status_code != 200:
+        raise Exception(
+            f"Failed to add message to chat history: {response.text} for action {action_uuid}"
+        )
+
     return response.json()
 
 
@@ -72,7 +77,7 @@ async def create_action_on_frappe(action_id: int, action_uuid: str):
 
     payload = json.dumps(
         {
-            "name": action_uuid,
+            "event_id": action_uuid,
             "title": action_details["title"],
             "type": action_details["type"],
             "category": action_details["category"],
@@ -90,4 +95,9 @@ async def create_action_on_frappe(action_id: int, action_uuid: str):
 
     response = requests.request("POST", url, headers=headers, data=payload)
 
-    print(response.text)
+    if response.status_code != 200:
+        raise Exception(
+            f"Failed to create action on frappe: {response.text} for action {action_uuid}"
+        )
+
+    # print(response.text)
