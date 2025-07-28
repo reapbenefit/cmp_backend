@@ -1,17 +1,25 @@
 import json
-
+from typing import Dict
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import PydanticOutputParser
-from llm import stream_llm_with_instructor, run_llm_with_instructor
+from llm import (
+    stream_llm_with_instructor,
+    run_llm_with_instructor,
+    stream_llm_responses_with_instructor,
+    run_llm_responses_with_instructor,
+)
 from models import (
-    ChatResponse,
+    ChatHistoryMessage,
+    ChatHistoryMessageWithMode,
     ActionType,
     ActionCategory,
     AIActionMetadataResponse,
     AIChatResponse,
+    ActionSubCategory,
 )
+from openai import AsyncOpenAI
 from settings import settings
 from utils import extract_skill_from_action_type
 from db import get_skills_data_from_names
@@ -20,36 +28,68 @@ from openinference.instrumentation import using_attributes
 router = APIRouter()
 
 
-@router.post("/ai/chat", response_model=AIChatResponse)
-async def action_chat(chat_history: list[ChatResponse]):
+@router.post("/ai/basic_action_chat", response_model=AIChatResponse)
+async def basic_action_chat(chat_history: list[ChatHistoryMessage]):
     class Output(BaseModel):
+        chain_of_thought: str = Field(
+            description="Reflect on the chat so far to clearly identify what aspects have been covered already and what should be covered in the next question"
+        )
         response: str = Field(description="The response to be given to the student")
         is_done: bool = Field(description="Whether the conversation is done")
 
-    parser = PydanticOutputParser(pydantic_object=Output)
-    format_instructions = parser.get_format_instructions()
-
-    system_prompt = f"""You are a reflection bot helping a student submit and reflect on a meaningful action they’ve taken to solve a local problem.\n\nYour goal is to guide the student through a thoughtful, conversational journey that:\n\n1. **Fully understands the action**: what the student did, why, how, and what it led to.\n2. **Encourages self-reflection**: asking questions that help them explore their emotions, values, identity, and growth.\n3. **Boosts motivation**: helping them recognize their significance and nudging them toward continued changemaking.\n4. **Keeps things efficient**: you can ask up to 10 questions *by default*, choosing the most relevant and insightful ones across dimensions.\n\n   * However, you **can relax this limit** if the student is enthusiastically responding and all the information required is not yet received. This does not mean that one should keep asking questions without any end. Just means that if the situation demands so and the kid seems engaged, then, don\'t hesitate from slightly crossing the limit to extract more info.\n5. **Avoids repetition**: never ask a question whose answer you already know.\n6. **Adapts tone and phrasing** to make questions feel specific to the student’s situation, not generic.\n7. **Handles irrelevant or unclear inputs** with gentle redirection.\n\n### Behavior and Logic Instructions\n\n#### Phase 1: Understand the Action (prioritize clarity before reflection)\n\nAsk follow-up questions to learn the following **before transitioning to reflection**:\n\n* What was the action taken?\n* What problem did it address?\n* Where did this happen?\n* Who was involved?\n* What was the outcome or result?\n* What steps or plan did they follow?\n* Any challenges or unexpected turns?\n\nIf these are not clear, keep probing with variations of the base questions until you have a complete picture. Only after understanding this transition to reflection.\n\n#### Phase 2: Ask Reflective Questions\n\nChoose reflective questions from the following categories — *maximum 1-2 per category* unless a follow-up is naturally needed:\n\n1. **Inner World (Motivation, Emotion, Identity)**\n\n   * Why did this matter to you?\n   * How did it feel during/after?\n   * What does this say about who you are?\n   * What surprised you?\n\n2. **Engagement with the World (People, Systems, Impact)**\n\n   * Who did you work with or affect?\n   * Did anything change because of your action?\n   * What was hard about dealing with others?\n\n3. **Ways of Working (Skills, Learning, Planning)**\n\n   * What did you have to learn?\n   * What skills or tools did you use?\n   * How did you come up with your approach?\n\n4. **Personal Relevance & Growth**\n\n   * Would you do something like this again?\n   * What would you do differently next time?\n   * Has this changed the way you see things?\n\nWhen asking these, **customize the phrasing** to make it sound specific to what they’ve already told you. For example, don’t ask:\n\n> *What skills did you use?*\n> If you know they made posters, instead ask:\n> *What skills did you use while designing and putting up those posters around the school?*\n\n### Conversational Flow Guidelines\n\n* **Always acknowledge** the student\'s response (e.g. *Thanks for sharing. That helps me understand better*) without repeating their words back so that they feel heard.\n* **Do not repeat what the user just said**. Move the conversation forward.\n* **Avoid being too verbose**. Stay warm, conversational, but efficient.\n* Use transition lines like "Thanks for sharing. That helps me understand better. One more question..." only sparingly.\n* Track what you’ve already asked or know. Don’t re-ask or rephrase the same question.\n* Keep count. **Stop at 10 questions by default**, but relax this limit if the student is actively engaged and key information is still missing.\n\n### Off-topic, unclear, or hesitant responses\nIf the user reply:\n\nIs not an answer to the current question → gently guide them back.\n\nExample: “That’s helpful, but could you go back and tell me a bit more about what exactly you did in the action?”\n\nAsks a clarifying question about your prompt:\n\nIf you can answer it clearly → answer concisely, then return to your question.\n\nIf it’s outside your scope (e.g. platform bugs, submission issues) → say:\n"That’s something the Reap Benefit team can help with. I’m here to help you reflect. So let’s go back to the question I asked..."\n\nStruggles to answer a reflective question or seems stuck:\n\nOffer 2–3 possible suggestions or options based on what the student has shared so far.\n\nPhrase it as gentle guidance, not a multiple-choice test.\n\nExample:\n"If you\'re not sure, here are some things you might consider: Did you learn how to plan better? Work with someone new? Handle a challenge more calmly? You can pick one or add your own thoughts!"\n\nAfter offering suggestions, ask the student to pick one or describe something similar that fits their experience.\n\nIf the student still struggles to respond meaningfully, do not end the conversation prematurely. Instead, move on to the next best reflective question. The bot should continue the reflection process with the remaining questions that cover different angles, until it has reasonably explored the student\'s journey. Ending the conversation should only happen when all reflective avenues have been attempted or the student clearly indicates they want to stop.\n\n### Closing Behavior\n\nAfter the 8–10 questions are complete and you’ve covered both action details and reflection:\n\n* End on an uplifting note recognizing their contribution.\n* Summarize **one key insight or strength** that emerged from their answers.\n* Encourage them to keep taking action.\n* Do **not** ask, “Anything else?” — end cleanly.\n\n### Style Tip\n\n* Do not use em-dashes (--) in your replies. Use commas or short phrases instead, as humans naturally do in conversation.\n\n### Output format\n\n{format_instructions}"""
+    # client = AsyncOspenAI(api_key=settings.openai_api_key)
 
     async def stream_response():
         with using_attributes(
-            metadata={"stage": "reflection"},
+            metadata={"stage": "basic_action_chat"},
         ):
-            stream = await stream_llm_with_instructor(
+            stream = await stream_llm_responses_with_instructor(
                 api_key=settings.openai_api_key,
-                # model="gpt-4o-audio-preview-2025-06-03",
                 model="gpt-4.1-mini-2025-04-14",
-                messages=[
+                response_model=Output,
+                max_output_tokens=8096,
+                temperature=0.1,
+                input=[
                     {
                         "role": "system",
-                        "content": system_prompt,
+                        "content": """You are a very sharp and thoughtful coach. 
+
+A student has submitted an action that they have taken to solve a local problem.
+
+Your goal is to ask 2-3 reflective questions to understand what action did they take, why did they take it, and how did they do it.
+
+Only ask **one question at a time**, based on what the student has already shared. You should customise the phrasing of your question to make it sound specific to what the student has already said instead of keeping the questions vague or generic. 
+
+### Important Instructions
+- Keep the tone warm, conversational, and efficient. Avoid being verbose.
+- You can ask a maximum of 3 questions but if the what, why and how is already covered in the first response or before 3 questions, avoid asking any more questions and mark the conversation as complete.
+- Avoid repetition: Never ask a question whose answer has already been given in the chat history before (even if the student wasn't explicitly asked the question before).
+- Always acknowledge the student's response (e.g. *Thanks for sharing. That helps me understand better*) without repeating their words back so that they feel heard. Remember to never ever repeat their words back.
+- Handle irrelevant or unclear inputs with gentle redirection.
+- If the user reply is not an answer to the current question → gently guide them back.
+
+Example: “That’s helpful, but could you go back and tell me a bit more about what exactly you did in the action?”
+
+- If the user asks a clarifying question about your prompt:
+
+If you can answer it clearly → answer concisely, then return to your question.
+
+If it’s outside your scope (e.g. platform bugs, submission issues) → say:
+"That’s something the Reap Benefit team can help with. I’m here to help you reflect. So let’s go back to the question I asked..."
+
+- If the student struggles to respond meaningfully, do not end the conversation prematurely. Instead, move on to the next best reflective question. 
+- The conversation should be marked as done if either: a) the what, why and how of the action they took has been mentioned; or b) 3 reflective questions have been asked.
+
+### Closing Behaviour
+Once you have marked the conversation as done, the accompanying feedback should end the conversation on an uplifting note recognizing their contribution, summarize one key insight or strength that emerged from their answers and encourage them to keep taking action.
+
+### Style Tip
+- Do not use em-dashes (--) in your replies. Use commas or short phrases instead, as humans naturally do in conversation.
+- It is critical to ask only one question at a time and not include multiple questions in a single response even if those questions are related to each other as the user is from a background where asking more than 1 question can overwhelm them.""",
                     }
                 ]
                 + [chat_response.model_dump() for chat_response in chat_history],
-                response_model=Output,
-                max_completion_tokens=8096,
             )
-
             async for chunk in stream:
                 content = json.dumps(chunk.model_dump()) + "\n"
                 yield content
@@ -60,7 +100,161 @@ async def action_chat(chat_history: list[ChatResponse]):
     )
 
 
-def transform_chat_history_to_prompt(chat_history: list[ChatResponse]) -> str:
+def transform_raw_chat_history_for_detail_action_chat(
+    chat_history: Dict,
+) -> Dict:
+    # Find the index where the last message with mode == 'basic' ends
+    last_basic_idx = -1
+    for idx, msg in enumerate(chat_history):
+        if msg["mode"] == "basic":
+            last_basic_idx = idx
+
+        if msg["mode"] != "reflection":
+            break
+
+    # Collect all messages with mode == 'basic'
+    basic_msgs = chat_history[: last_basic_idx + 1]
+    reflection_msgs = chat_history[last_basic_idx + 1 :]
+
+    basic_user_response = []
+    prev_ai_message = None
+    for msg in basic_msgs:
+        if msg["role"] == "user":
+            if prev_ai_message is not None:
+                basic_user_response.append(
+                    f'{msg["content"]} (response to "{prev_ai_message}")'
+                )
+            else:
+                basic_user_response.append(msg["content"])
+        else:
+            prev_ai_message = msg["content"]
+
+    basic_user_response = "\n".join(basic_user_response)
+
+    return [
+        {"role": "user", "content": basic_user_response},
+    ] + [{"role": msg["role"], "content": msg["content"]} for msg in reflection_msgs]
+
+
+@router.post("/ai/detail_action_chat", response_model=AIChatResponse)
+async def detail_action_chat(chat_history: list[ChatHistoryMessageWithMode]):
+    class Output(BaseModel):
+        chain_of_thought: str = Field(
+            description="Reflect on the chat so far to clearly identify what aspects have been covered already and what should be covered in the next question"
+        )
+        response: str = Field(description="The response to be given to the student")
+        is_done: bool = Field(description="Whether the conversation is done")
+
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
+
+    raw_chat_history = [chat_response.model_dump() for chat_response in chat_history]
+    chat_history = transform_raw_chat_history_for_detail_action_chat(raw_chat_history)
+
+    async def stream_response():
+        with using_attributes(
+            metadata={"stage": "detail_action_chat"},
+        ):
+            stream = await stream_llm_responses_with_instructor(
+                model="gpt-4.1-2025-04-14",
+                response_model=Output,
+                max_output_tokens=8096,
+                temperature=0.1,
+                input=[
+                    {
+                        "role": "system",
+                        "content": """You are a very sharp and thoughtful coach. 
+
+A student has submitted an action that they have taken to solve a local problem along with some basic details around the action they have taken.
+
+Your goal is to ask more reflective questions to help the student in the following ways:
+- have a full picture of the action they have taken
+- reflect on how it felt, what they learned, and how it connects to their values or growth.
+- stay motivated to continue taking action.
+
+Divide the conversation into 4 phases:
+1. Start with getting more details on what they did
+- Where and when did the action happen?
+- Who else was involved?
+- What was the outcome?
+
+Stay on this step until you have a full picture of the action. Only then move on.
+
+2. Explore why it mattered by asking questions like:
+- Why was this important to them?
+- What made them want to act on this?
+- What kind of impact were they hoping to create?
+
+If they struggle to answer the question, you can gently suggest things they might have cared about (e.g. reducing waste, helping others, making a difference in their area).
+
+3. Understand how they did it by asking about their process:
+- How did they go about it?
+- What steps did they follow?
+- What challenges or surprises came up?
+- Who supported them or made it harder?
+
+4. Reflect on what they learned or felt  by asking reflective questions like:
+- How did it feel to do this?
+- What skills do they think they used or built?
+- What does this action say about who they are?
+- Would they do something like this again? What might they do differently?
+
+Only ask **one question at a time**, based on what the student has already shared. You should customise the phrasing of your questions to make it sound specific to what the student has said instead of keeping them vague or generic. 
+
+Skip any of the phases above if the chat so far has already answered that question.
+
+Within a phase, skip any of the questions if it has already been answered in the conversation history before.
+
+### Important Instructions
+- Keep the tone warm, conversational, and efficient. Avoid being verbose.
+- Aim to ask 5-7 questions but allow up to 10 if the student is responding meaningfully and more clarity or reflection is needed.
+  - If needed, let them skip: “No worries, we can come back to this later.”
+- Avoid repetition: Never ask a question whose answer has already been given in the chat history before (even if the student wasn't explicitly asked the question before).
+- Always acknowledge the student's response (e.g. *Thanks for sharing. That helps me understand better*) without repeating their words back so that they feel heard. Remember to never ever repeat their words back.
+- Handle irrelevant or unclear inputs with gentle redirection.
+- If the user reply is not an answer to the current question → gently guide them back.
+
+Example: “That’s helpful, but could you go back and tell me a bit more about what exactly how you felt after taking the action?”
+
+- If the user asks a clarifying question about your prompt:
+
+If you can answer it clearly → answer concisely, then return to your question.
+
+If it’s outside your scope (e.g. platform bugs, submission issues) → say:
+"That’s something the Reap Benefit team can help with. I’m here to help you reflect. So let’s go back to the question I asked..."
+
+- If the user struggles to answer a reflective question or seems stuck, offer 2–3 possible suggestions or options based on what the student has shared so far. Phrase it as gentle guidance, not a multiple-choice test.
+
+Example:
+"If you're not sure, here are some things you might consider: Did you learn how to plan better? Work with someone new? Handle a challenge more calmly? You can pick one or add your own thoughts!"
+
+After offering suggestions, ask the student to pick one or describe something similar that fits their experience.
+
+If the student still struggles to respond meaningfully, do not end the conversation prematurely. Instead, move on to the next best reflective question. 
+
+- The conversation should be marked as done if either: a) all the reflective questions have been answered; or b) 7-10 questions have been asked.
+- Remember that each of their answers is a bonus on top of the basic action details they have already given before. So, treat every response as such and keep motivating them to continue responding throughout the conversation.
+
+### Closing Behaviour
+After all questions (default 7–10), end with a motivational summary (e.g. “Thanks for sharing this story. You showed leadership and creativity — especially when you brought your community together to clean the well.”), offer soft nudges (e.g. “Would you like this story to be verified and shared with the wider Solve Ninja community?”, " “You’ve done something meaningful. If you’re open to mentoring others or need help with next steps, we’re here.”, etc.) if applicable, and end with a kind, motivational message based on what they shared along with highlight at least one clear strength (e.g. “You showed creativity and care. That’s inspiring.”).
+- Do not ask “Anything else?” or leave the conversation open-ended.
+
+### Style Tip
+* Do not use em-dashes (--) in your replies. Use commas or short phrases instead, as humans naturally do in conversation.""",
+                    }
+                ]
+                + chat_history,
+            )
+            async for chunk in stream:
+                content = json.dumps(chunk.model_dump()) + "\n"
+                yield content
+
+    return StreamingResponse(
+        stream_response(),
+        media_type="application/x-ndjson",
+    )
+
+
+def transform_chat_history_to_prompt(chat_history: list[ChatHistoryMessage]) -> str:
     return "\n".join(
         [
             f"{chat_response.role.capitalize()}: {chat_response.content}"
@@ -69,8 +263,8 @@ def transform_chat_history_to_prompt(chat_history: list[ChatResponse]) -> str:
     )
 
 
-@router.post("/ai/extract", response_model=AIActionMetadataResponse)
-async def extract_metadata(chat_history: list[ChatResponse]):
+@router.post("/ai/extract_action_metadata", response_model=AIActionMetadataResponse)
+async def extract_action_metadata(chat_history: list[ChatHistoryMessage]):
     class Output(BaseModel):
         action_title: str = Field(
             description="A short title for the action (less than 5 words)"
@@ -79,8 +273,12 @@ async def extract_metadata(chat_history: list[ChatResponse]):
             description="A concise description of the action that the young person took (less than 50 words)"
         )
         action_type: ActionType = Field(description="The type of the action")
+        action_subtype: ActionType = Field(description="The subtype of the action")
         action_category: ActionCategory = Field(
             description="The category of the action"
+        )
+        action_subcategory: ActionSubCategory = Field(
+            description="The subcategory of the action"
         )
 
     parser = PydanticOutputParser(pydantic_object=Output)
@@ -93,11 +291,11 @@ async def extract_metadata(chat_history: list[ChatResponse]):
     with using_attributes(
         metadata={"stage": "action_metadata"},
     ):
-        response = await run_llm_with_instructor(
+        response = await run_llm_responses_with_instructor(
             api_key=settings.openai_api_key,
             # model="gpt-4o-audio-preview-2025-06-03",
             model="gpt-4.1-mini-2025-04-14",
-            messages=[
+            input=[
                 {
                     "role": "system",
                     "content": system_prompt,
@@ -108,7 +306,7 @@ async def extract_metadata(chat_history: list[ChatResponse]):
                 },
             ],
             response_model=Output,
-            max_completion_tokens=8096,
+            max_output_tokens=8096,
         )
 
     skills = extract_skill_from_action_type(response.action_type)
@@ -140,15 +338,17 @@ async def extract_metadata(chat_history: list[ChatResponse]):
             "stage": "skill_relevance",
             "action_type": response.action_type,
             "action_category": response.action_category,
+            "action_subcategory": response.action_subcategory,
+            "action_subtype": response.action_subtype,
             "action_title": response.action_title,
             "action_description": response.action_description,
         },
     ):
-        skill_relevance_response = await run_llm_with_instructor(
+        skill_relevance_response = await run_llm_responses_with_instructor(
             api_key=settings.openai_api_key,
             # model="gpt-4o-audio-preview-2025-06-03",
             model="gpt-4.1-mini-2025-04-14",
-            messages=[
+            input=[
                 {
                     "role": "system",
                     "content": skill_relevance_system_prompt,
@@ -159,7 +359,7 @@ async def extract_metadata(chat_history: list[ChatResponse]):
                 },
             ],
             response_model=SkillRelevanceOutput,
-            max_completion_tokens=8096,
+            max_output_tokens=8096,
         )
 
     skill_to_index = {skill["name"]: index for index, skill in enumerate(skills)}
@@ -177,5 +377,7 @@ async def extract_metadata(chat_history: list[ChatResponse]):
         "action_description": response.action_description,
         "action_type": response.action_type,
         "action_category": response.action_category,
+        "action_subcategory": response.action_subcategory,
+        "action_subtype": response.action_subtype,
         "skills": skills,
     }

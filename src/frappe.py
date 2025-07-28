@@ -68,7 +68,12 @@ def get_user_profile(email: str):
     return response.json()["message"]
 
 
-async def create_action_on_frappe(action_id: int, action_uuid: str):
+async def create_action_on_frappe(
+    action_id: int,
+    action_uuid: str,
+    subcategory: str,
+    subtype: str,
+):
     from db import get_action_for_user
 
     url = f"{settings.frappe_backend_base_url}/method/solve_ninja.api.events.create_events"
@@ -81,6 +86,8 @@ async def create_action_on_frappe(action_id: int, action_uuid: str):
             "title": action_details["title"],
             "type": action_details["type"],
             "category": action_details["category"],
+            "subcategory": subcategory,
+            "sub_type": subtype,
             "user": action_details["user"]["email"],
             "description": action_details["description"],
             "skills": {

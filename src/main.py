@@ -164,7 +164,12 @@ async def add_chat_messages_for_action(
 async def update_action(action_uuid: str, request: UpdateActionRequest) -> Action:
     try:
         action = await update_action_for_user(action_uuid, request)
-        await create_action_on_frappe(action["id"], action_uuid)
+        await create_action_on_frappe(
+            action["id"],
+            action_uuid,
+            request.subcategory,
+            request.subtype,
+        )
         return action
     except Exception as e:
         traceback.print_exc()

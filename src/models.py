@@ -1,3 +1,4 @@
+from calendar import c
 from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel
@@ -10,9 +11,18 @@ class ChatRole(str, Enum):
     ANALYSIS = "analysis"
 
 
-class ChatResponse(BaseModel):
+class ChatMode(str, Enum):
+    BASIC_ACTION_CHAT = "basic"
+    DETAIL_ACTION_CHAT = "reflection"
+
+
+class ChatHistoryMessage(BaseModel):
     content: str
     role: ChatRole
+
+
+class ChatHistoryMessageWithMode(ChatHistoryMessage):
+    mode: Optional[ChatMode] = None
 
 
 class ActionType(str, Enum):
@@ -120,6 +130,94 @@ class ActionCategory(str, Enum):
 
     def __eq__(self, other):
         if isinstance(other, ActionCategory):
+            return self.value == other.value
+
+        if isinstance(other, str):
+            return self.value == other
+
+        return False
+
+
+class ActionSubCategory(str, Enum):
+    CIVIC = "Civic"
+    PUBLIC_TOILETS = "Public Toilets"
+    PUBLIC_ASSET = "Public asset"
+    SMART_CITIES = "Smart Cities"
+    GOVERNMENT_SCHEMES = "Government Schemes"
+    WATER_EFFICIENT_ZONE = "Water efficient zone"
+    NOT_APPLICABLE = "Not Applicable"
+    PICK_UP_BY_VEHICLE = "Pick up by vehicle"
+    PICK_UP_BY_KARAMCHARI = "Pick up by karamchari"
+    RELIEF_CENTERS = "Relief Centers"
+    HEALTH = "Health"
+    DENGUE_HOTSPOT = "Dengue Hotspot"
+    WATER_RESOURCES = "Water Resources"
+    AUDIT = "Audit"
+    NAGARIKA_SAKHI_RURAL_WOMEN_LEADERS_INITIATIVE = (
+        "Nagarika Sakhi - Rural Women Leaders Initiative"
+    )
+    WATER_SOURCES = "Water Sources"
+    STREET_LIGHTS = "Street Lights"
+    WATER_QUALITY = "Water Quality"
+    WATER_TANKERS = "Water Tankers"
+    WATERBODY = "Waterbody"
+    RECYCLING = "Recycling"
+    SOLID_WASTE_MANAGEMENT = "Solid Waste Management"
+    GOVERNMENT_INFRASTRUCTURE = "Government Infrastructure"
+    RECYCLE_CENTERS = "Recycle Centers"
+    GARBAGE_DUMPS = "Garbage Dumps"
+    HAZARDOUS_WASTE = "Hazardous Waste"
+    SOLID_WASTE_COLLECTION = "Solid Waste Collection"
+    SOLID_WASTE_DISPOSAL = "Solid Waste Disposal"
+    TREES = "Trees"
+    HARASSMENT_ZONE = "Harassment Zone"
+    PUBLIC_INSTITUTIONS = "Public Institutions"
+    PUBLIC_TRANSPORT = "Public Transport"
+    SANITATION_AUDIT = "Sanitation Audit"
+    FIREWORKS = "Fireworks"
+    CITIZEN_INITIATIVES = "Citizen Initiatives"
+    AIR_QUALITY = "Air Quality"
+    CIVIC_ENVIRONMENTAL_DATA = "Civic-Environmental Data"
+    SANITATION = "Sanitation"
+    ELECTRICITY = "Electricity"
+    CROWDSOURCED_DATA = "Crowdsourced Data"
+    COMMUNITY_BUILDING = "Community Building"
+    TRAFFIC_ROAD = "Traffic/road"
+    POLICY = "Policy"
+    TRAFFIC_AND_MOBILITY = "Traffic & Mobility"
+    CAUVERY_WATER_POLICY = "Cauvery Water Policy"
+    WATER_SUPPLY_SCHEME_AUDIT = "Water Supply Scheme Audit"
+    GARBAGE_BIN = "Garbage Bin"
+    BOREWELL = "Borewell"
+    BLACK_SPOT_FIXED_AND_MAINTAINED = "Black Spot Fixed and Maintained"
+    RAINFALL = "Rainfall"
+    STREET_AUDIT = "Street audit"
+    FLOOD_MAP = "Flood map"
+    UPCYCLE = "Upcycle"
+    PUBLIC_PARK = "Public Park"
+    WASTE = "Waste"
+    URBAN_FLOODING = "Urban Flooding"
+    STUBBLE_BURNING = "Stubble Burning"
+    ANGANWADI_CENTRE = "Anganwadi centre"
+    POTHOLE_LOWER = "pothole"
+    LIVELIHOOD = "Livelihood"
+    HEALTHCARE = "healthcare"
+    POTHOLE = "Pothole"
+    URBAN_GREENERY = "Urban Greenery"
+    SCHEMES = "Schemes"
+    AIR = "Air"
+    TREE_TRACKING = "Tree Tracking"
+    ALL_IN_ONE_SERVICE_CENTRE = "All in One Service Centre"
+    COVID = "COVID"
+    MALARIA_HOTSPOT = "Malaria Hotspot"
+    WATER = "Water"
+    OTHER = "Other"
+
+    def __str__(self):
+        return self.value
+
+    def __eq__(self, other):
+        if isinstance(other, ActionSubCategory):
             return self.value == other.value
 
         if isinstance(other, str):
@@ -243,6 +341,8 @@ class UpdateActionRequest(BaseModel):
     description: str | None = None
     status: Optional[str] = None
     category: Optional[str] = None
+    subcategory: Optional[str] = None
+    subtype: Optional[str] = None
     type: Optional[str] = None
     skills: Optional[List[ActionSkill]] = None
 
@@ -252,6 +352,8 @@ class AIActionMetadataResponse(BaseModel):
     action_description: str
     action_type: str
     action_category: str
+    action_subcategory: str
+    action_subtype: str
     skills: List[ActionSkill]
 
 
