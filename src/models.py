@@ -12,8 +12,8 @@ class ChatRole(str, Enum):
 
 
 class ChatMode(str, Enum):
-    BASIC_ACTION_CHAT = "basic"
-    DETAIL_ACTION_CHAT = "reflection"
+    BASIC = "basic"
+    DETAIL = "reflection"
 
 
 class ChatHistoryMessage(BaseModel):

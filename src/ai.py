@@ -5,8 +5,6 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import PydanticOutputParser
 from llm import (
-    stream_llm_with_instructor,
-    run_llm_with_instructor,
     stream_llm_responses_with_instructor,
     run_llm_responses_with_instructor,
 )
@@ -18,8 +16,8 @@ from models import (
     AIActionMetadataResponse,
     AIChatResponse,
     ActionSubCategory,
+    ChatMode,
 )
-from openai import AsyncOpenAI
 from settings import settings
 from utils import extract_skill_from_action_type
 from db import get_skills_data_from_names
@@ -32,12 +30,10 @@ router = APIRouter()
 async def basic_action_chat(chat_history: list[ChatHistoryMessage]):
     class Output(BaseModel):
         chain_of_thought: str = Field(
-            description="Reflect on the chat so far to clearly identify what aspects have been covered already and what should be covered in the next question"
+            description="Reflect on the chat so far to clearly identify what questions have been answered already and what should be answered in the next question"
         )
         response: str = Field(description="The response to be given to the student")
         is_done: bool = Field(description="Whether the conversation is done")
-
-    # client = AsyncOspenAI(api_key=settings.openai_api_key)
 
     async def stream_response():
         with using_attributes(
@@ -45,7 +41,7 @@ async def basic_action_chat(chat_history: list[ChatHistoryMessage]):
         ):
             stream = await stream_llm_responses_with_instructor(
                 api_key=settings.openai_api_key,
-                model="gpt-4.1-mini-2025-04-14",
+                model="gpt-4.1-2025-04-14",
                 response_model=Output,
                 max_output_tokens=8096,
                 temperature=0.1,
@@ -56,7 +52,7 @@ async def basic_action_chat(chat_history: list[ChatHistoryMessage]):
 
 A student has submitted an action that they have taken to solve a local problem.
 
-Your goal is to ask 2-3 reflective questions to understand what action did they take, why did they take it, and how did they do it.
+Your goal is to ask (a maximum of) 2-3 reflective questions to understand what action did they take, why did they take it, and how did they do it. Don't ask questions unnecessarily. If the student's response does not need more questions, end the conversation.
 
 Only ask **one question at a time**, based on what the student has already shared. You should customise the phrasing of your question to make it sound specific to what the student has already said instead of keeping the questions vague or generic. 
 
@@ -67,6 +63,7 @@ Only ask **one question at a time**, based on what the student has already share
 - Always acknowledge the student's response (e.g. *Thanks for sharing. That helps me understand better*) without repeating their words back so that they feel heard. Remember to never ever repeat their words back.
 - Handle irrelevant or unclear inputs with gentle redirection.
 - If the user reply is not an answer to the current question → gently guide them back.
+- As long as the student has mentioned a basic what, why and how of the action, you can mark the conversation as done. Don't keep digging for details unnecessarily.
 
 Example: “That’s helpful, but could you go back and tell me a bit more about what exactly you did in the action?”
 
@@ -80,8 +77,8 @@ If it’s outside your scope (e.g. platform bugs, submission issues) → say:
 - If the student struggles to respond meaningfully, do not end the conversation prematurely. Instead, move on to the next best reflective question. 
 - The conversation should be marked as done if either: a) the what, why and how of the action they took has been mentioned; or b) 3 reflective questions have been asked.
 
-### Closing Behaviour
-Once you have marked the conversation as done, the accompanying feedback should end the conversation on an uplifting note recognizing their contribution, summarize one key insight or strength that emerged from their answers and encourage them to keep taking action.
+### Closing the conversation
+Once you have marked the conversation as done, the accompanying feedback should end the conversation on an uplifting note recognizing their contribution, summarizing one key insight or strength that emerged from their answers and encouraging them to keep taking action. Never ever leave the conversation open-ended when marking it as done.
 
 ### Style Tip
 - Do not use em-dashes (--) in your replies. Use commas or short phrases instead, as humans naturally do in conversation.
@@ -106,10 +103,9 @@ def transform_raw_chat_history_for_detail_action_chat(
     # Find the index where the last message with mode == 'basic' ends
     last_basic_idx = -1
     for idx, msg in enumerate(chat_history):
-        if msg["mode"] == "basic":
+        if msg["mode"] == ChatMode.BASIC:
             last_basic_idx = idx
-
-        if msg["mode"] != "reflection":
+        else:
             break
 
     # Collect all messages with mode == 'basic'
@@ -145,8 +141,6 @@ async def detail_action_chat(chat_history: list[ChatHistoryMessageWithMode]):
         response: str = Field(description="The response to be given to the student")
         is_done: bool = Field(description="Whether the conversation is done")
 
-    client = AsyncOpenAI(api_key=settings.openai_api_key)
-
     raw_chat_history = [chat_response.model_dump() for chat_response in chat_history]
     chat_history = transform_raw_chat_history_for_detail_action_chat(raw_chat_history)
 
@@ -155,6 +149,7 @@ async def detail_action_chat(chat_history: list[ChatHistoryMessageWithMode]):
             metadata={"stage": "detail_action_chat"},
         ):
             stream = await stream_llm_responses_with_instructor(
+                api_key=settings.openai_api_key,
                 model="gpt-4.1-2025-04-14",
                 response_model=Output,
                 max_output_tokens=8096,
@@ -294,7 +289,7 @@ async def extract_action_metadata(chat_history: list[ChatHistoryMessage]):
         response = await run_llm_responses_with_instructor(
             api_key=settings.openai_api_key,
             # model="gpt-4o-audio-preview-2025-06-03",
-            model="gpt-4.1-mini-2025-04-14",
+            model="gpt-4.1-2025-04-14",
             input=[
                 {
                     "role": "system",
@@ -347,7 +342,7 @@ async def extract_action_metadata(chat_history: list[ChatHistoryMessage]):
         skill_relevance_response = await run_llm_responses_with_instructor(
             api_key=settings.openai_api_key,
             # model="gpt-4o-audio-preview-2025-06-03",
-            model="gpt-4.1-mini-2025-04-14",
+            model="gpt-4.1-2025-04-14",
             input=[
                 {
                     "role": "system",
