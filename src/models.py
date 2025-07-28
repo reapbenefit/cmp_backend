@@ -31,7 +31,6 @@ class ActionType(str, Enum):
     OTHER_ACTIVITY = "Other Activity"
     REPORTED_ISSUE = "reported issue"
     OLD_REPORT_FOLLOWUP = "Old report followup"
-    CAMPAIGN = "Campaign"
     CREATED_A_CAMPAIGN = "Created a Campaign"
     HANDS_ON = "Hands on"
     TECH_PROTOTYPE = "Tech prototype"
@@ -39,7 +38,6 @@ class ActionType(str, Enum):
     TECH_SOLUTION = "Tech solution"
     URBAN_PLANNING = "Urban Planning"
     NON_TECH_SOLUTION = "Non tech solution"
-    MAPPING_ASSET_OR_ISSUE_ALT = "Mapping assest or issue"
     CROWDSOURCED_DATA = "Crowdsourced data"
     SESSION_TAKEN = "Session Taken"
     STREET_CLEANLINESS_CHECK = "Street Cleanliness check"
@@ -53,8 +51,8 @@ class ActionType(str, Enum):
     PROTOTYPE = "Prototype"
     AUDIT = "Audit"
     SUSTAINABLE_LIFESTYLE = "Sustainable Lifestyle"
-    CONDUCTED_A_SURVEY_ION_WATER_SUPPLY_SCHEME = (
-        "Conducted a Survey ion Water Supply Scheme"
+    CONDUCTED_A_SURVEY_ON_WATER_SUPPLY_SCHEME = (
+        "Conducted a Survey on Water Supply Scheme"
     )
     URBAN_FLOODING = "Urban Flooding"
     CLOTH_COLLECTION = "Cloth Collection"
