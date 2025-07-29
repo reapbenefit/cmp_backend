@@ -537,7 +537,12 @@ async def get_action_from_uuid(action_uuid: str):
     return await get_action_for_user(action_id)
 
 
-async def create_action_for_user(action: CreateActionRequest):
+async def create_action_for_user(
+    action_title: str,
+    action_user_id: int,
+    user_message: str,
+    ai_message: str,
+):
     async with get_new_db_connection() as conn:
         cursor = await conn.cursor()
 
@@ -545,29 +550,34 @@ async def create_action_for_user(action: CreateActionRequest):
 
         await cursor.execute(
             f"INSERT INTO {actions_table_name} (user_id, title, status, uuid) VALUES (?, ?, ?, ?)",
-            (action.user_id, action.title, "draft", action_uuid),
+            (action_user_id, action_title, "draft", action_uuid),
         )
 
         action_id = cursor.lastrowid
 
         await cursor.execute(
             f"SELECT email FROM {users_table_name} WHERE id = ?",
-            (action.user_id,),
+            (action_user_id,),
         )
         user_email = (await cursor.fetchone())[0]
 
-        role = "user"
-        response_type = "text"
+        await cursor.execute(
+            f"INSERT INTO {chat_history_table_name} (action_id, role, content, response_type) VALUES (?, ?, ?, ?)",
+            (action_id, "user", user_message, "text"),
+        )
 
         await cursor.execute(
             f"INSERT INTO {chat_history_table_name} (action_id, role, content, response_type) VALUES (?, ?, ?, ?)",
-            (action_id, role, action.user_message, response_type),
+            (action_id, "assistant", ai_message, "text"),
         )
 
         await conn.commit()
 
         await add_message_to_chat_history(
-            action_uuid, user_email, role, action.user_message, response_type
+            action_uuid, user_email, "user", user_message, "text"
+        )
+        await add_message_to_chat_history(
+            action_uuid, user_email, "assistant", ai_message, "text"
         )
 
         return await get_action_for_user(action_id)

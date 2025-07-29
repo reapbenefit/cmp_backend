@@ -4,11 +4,16 @@ from fastapi import HTTPException
 import asyncpg
 from settings import settings
 from typing import Literal
+from contextlib import asynccontextmanager
 
 
+@asynccontextmanager
 async def get_db_connection():
     conn = await asyncpg.connect(settings.database_url)
-    return conn
+    try:
+        yield conn
+    finally:
+        await conn.close()
 
 
 async def add_message_to_chat_history(
@@ -111,4 +116,11 @@ async def create_or_update_action_on_frappe(
             f"Failed to create action on frappe: {response.text} for action {action_uuid}"
         )
 
-    # print(response.text)
+
+async def event_exists(action_uuid: str):
+    async with get_db_connection() as conn:
+        row = await conn.fetchrow(
+            'SELECT name FROM "tabEvents" WHERE name = $1',
+            action_uuid,
+        )
+        return row is not None

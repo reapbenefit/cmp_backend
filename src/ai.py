@@ -10,26 +10,33 @@ from llm import (
 )
 from models import (
     ChatHistoryMessage,
-    ChatHistoryMessageWithMode,
     ActionType,
     ActionCategory,
     AIActionMetadataResponse,
     AIChatResponse,
     ActionSubCategory,
     ChatMode,
+    BasicActionChatRequest,
+    DetailActionChatRequest,
     AIUpdateActionMetadataResponse,
 )
 from settings import settings
 from utils import extract_skill_from_action_type
-from frappe import create_or_update_action_on_frappe
-from db import get_skills_data_from_names, get_action_from_uuid, update_action_for_user
+from frappe import create_or_update_action_on_frappe, event_exists
+from db import (
+    get_skills_data_from_names,
+    get_action_from_uuid,
+    update_action_for_user,
+    get_action_chat_history,
+)
 from openinference.instrumentation import using_attributes
 
 router = APIRouter()
 
 
-@router.post("/ai/basic_action_chat", response_model=AIChatResponse)
-async def basic_action_chat(chat_history: list[ChatHistoryMessage]):
+async def get_basic_action_response_from_chat_history(
+    chat_history: List[ChatHistoryMessage],
+):
     class Output(BaseModel):
         chain_of_thought: str = Field(
             description="Reflect on the chat so far to clearly identify what questions have been answered already and what should be answered in the next question"
@@ -37,20 +44,19 @@ async def basic_action_chat(chat_history: list[ChatHistoryMessage]):
         response: str = Field(description="The response to be given to the student")
         is_done: bool = Field(description="Whether the conversation is done")
 
-    async def stream_response():
-        with using_attributes(
-            metadata={"stage": "basic_action_chat"},
-        ):
-            stream = await stream_llm_responses_with_instructor(
-                api_key=settings.openai_api_key,
-                model="gpt-4.1-2025-04-14",
-                response_model=Output,
-                max_output_tokens=8096,
-                temperature=0.1,
-                input=[
-                    {
-                        "role": "system",
-                        "content": """You are a very sharp and thoughtful coach. 
+    with using_attributes(
+        metadata={"stage": "basic_action_chat"},
+    ):
+        return await stream_llm_responses_with_instructor(
+            api_key=settings.openai_api_key,
+            model="gpt-4.1-2025-04-14",
+            response_model=Output,
+            max_output_tokens=8096,
+            temperature=0.1,
+            input=[
+                {
+                    "role": "system",
+                    "content": """You are a very sharp and thoughtful coach. 
 
 A student has submitted an action that they have taken to solve a local problem.
 
@@ -85,13 +91,36 @@ Once you have marked the conversation as done, the accompanying feedback should 
 ### Style Tip
 - Do not use em-dashes (--) in your replies. Use commas or short phrases instead, as humans naturally do in conversation.
 - It is critical to ask only one question at a time and not include multiple questions in a single response even if those questions are related to each other as the user is from a background where asking more than 1 question can overwhelm them.""",
-                    }
-                ]
-                + [chat_response.model_dump() for chat_response in chat_history],
-            )
-            async for chunk in stream:
-                content = json.dumps(chunk.model_dump()) + "\n"
-                yield content
+                }
+            ]
+            + chat_history,
+        )
+
+
+@router.post("/ai/basic_action_chat", response_model=AIChatResponse)
+async def basic_action_chat(request: BasicActionChatRequest):
+    chat_history = await get_action_chat_history(request.action_uuid)
+
+    chat_history = [
+        {
+            "role": message["role"],
+            "content": message["content"],
+        }
+        for message in chat_history
+    ]
+
+    chat_history += [
+        {
+            "role": "user",
+            "content": request.last_user_message,
+        }
+    ]
+
+    async def stream_response():
+        stream = await get_basic_action_response_from_chat_history(chat_history)
+        async for chunk in stream:
+            content = json.dumps(chunk.model_dump()) + "\n"
+            yield content
 
     return StreamingResponse(
         stream_response(),
@@ -105,10 +134,10 @@ def transform_raw_chat_history_for_detail_action_chat(
     # Find the index where the last message with mode == 'basic' ends
     last_basic_idx = -1
     for idx, msg in enumerate(chat_history):
-        if msg["mode"] == ChatMode.BASIC:
-            last_basic_idx = idx
-        else:
+        if "mode" not in msg or msg["mode"] != ChatMode.BASIC:
             break
+
+        last_basic_idx = idx
 
     # Collect all messages with mode == 'basic'
     basic_msgs = chat_history[: last_basic_idx + 1]
@@ -135,7 +164,7 @@ def transform_raw_chat_history_for_detail_action_chat(
 
 
 @router.post("/ai/detail_action_chat", response_model=AIChatResponse)
-async def detail_action_chat(chat_history: list[ChatHistoryMessageWithMode]):
+async def detail_action_chat(request: DetailActionChatRequest):
     class Output(BaseModel):
         chain_of_thought: str = Field(
             description="Reflect on the chat so far to clearly identify what aspects have been covered already and what should be covered in the next question"
@@ -143,8 +172,26 @@ async def detail_action_chat(chat_history: list[ChatHistoryMessageWithMode]):
         response: str = Field(description="The response to be given to the student")
         is_done: bool = Field(description="Whether the conversation is done")
 
-    raw_chat_history = [chat_response.model_dump() for chat_response in chat_history]
-    chat_history = transform_raw_chat_history_for_detail_action_chat(raw_chat_history)
+    chat_history = await get_action_chat_history(request.action_uuid)
+
+    for message in chat_history:
+        if message["role"] == "analysis":
+            break
+
+        message["mode"] = ChatMode.BASIC
+
+    chat_history = [
+        message for message in chat_history if message["role"] != "analysis"
+    ]
+
+    chat_history += [
+        {
+            "role": "user",
+            "content": request.last_user_message,
+        }
+    ]
+
+    chat_history = transform_raw_chat_history_for_detail_action_chat(chat_history)
 
     async def stream_response():
         with using_attributes(
@@ -252,16 +299,16 @@ After all questions (default 7–10), end with a motivational summary (e.g. “T
     )
 
 
-def transform_chat_history_to_prompt(chat_history: List[ChatHistoryMessage]) -> str:
+def transform_chat_history_to_prompt(chat_history: List[Dict]) -> str:
     return "\n".join(
         [
-            f"{chat_response.role.capitalize()}: {chat_response.content}"
+            f"{chat_response['role'].capitalize()}: {chat_response['content']}"
             for chat_response in chat_history
         ]
     )
 
 
-async def get_action_metadata_from_chat_history(chat_history: List[ChatHistoryMessage]):
+async def get_action_metadata_from_chat_history(chat_history: List[Dict]):
     class Output(BaseModel):
         action_title: str = Field(
             description="A short title for the action (less than 5 words)"
@@ -317,7 +364,7 @@ async def get_action_metadata_from_chat_history(chat_history: List[ChatHistoryMe
 
 
 async def get_skills_from_action(
-    chat_history: List[ChatHistoryMessage],
+    chat_history: List[Dict],
     action_type: ActionType,
     action_category: ActionCategory,
     action_subcategory: ActionSubCategory,
@@ -340,7 +387,7 @@ async def get_skills_from_action(
         )
 
     class SkillRelevanceOutput(BaseModel):
-        skill_relevances: list[SkillRelevance] = Field(
+        skill_relevances: List[SkillRelevance] = Field(
             description="The relevance of the skills to the action"
         )
 
@@ -394,9 +441,8 @@ async def get_skills_from_action(
 
 
 @router.post("/ai/extract_action_metadata", response_model=AIActionMetadataResponse)
-async def extract_action_metadata(
-    chat_history: list[ChatHistoryMessage], action_uuid: str
-):
+async def extract_action_metadata(action_uuid: str):
+    chat_history = await get_action_chat_history(action_uuid)
     action_metadata = await get_action_metadata_from_chat_history(chat_history)
     skills = await get_skills_from_action(
         chat_history,
@@ -418,12 +464,18 @@ async def extract_action_metadata(
         action_metadata["action_type"],
         action_metadata["skills"],
     )
+
+    # to handle the case where the first api call from the frontend got interrupted, the backend processed and
+    # created the event but never got stored on chat history and so, this get retried again but if it tries
+    # to recreate the event on frappe, it will throw an error
+    mode = "create" if not await event_exists(action_uuid) else "update"
+
     await create_or_update_action_on_frappe(
         action["id"],
         action_uuid,
         action_metadata["action_subcategory"],
         action_metadata["action_subtype"],
-        mode="create",
+        mode=mode,
     )
 
     return action_metadata
@@ -432,9 +484,13 @@ async def extract_action_metadata(
 @router.post(
     "/ai/update_action_metadata", response_model=AIUpdateActionMetadataResponse
 )
-async def update_action_metadata(
-    chat_history: list[ChatHistoryMessage], action_uuid: str
-):
+async def update_action_metadata(action_uuid: str):
+    chat_history = await get_action_chat_history(action_uuid)
+
+    chat_history = [
+        message for message in chat_history if message["role"] != "analysis"
+    ]
+
     action_metadata = await get_action_metadata_from_chat_history(chat_history)
     action = await get_action_from_uuid(action_uuid)
 

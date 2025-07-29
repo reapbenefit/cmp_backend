@@ -1,4 +1,5 @@
 from typing import List
+import json
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRouter
@@ -15,13 +16,13 @@ from models import (
     ChatMessage,
     ChatSession,
     AddChatMessageRequest,
-    UpdateActionRequest,
+    CreateActionResponse,
 )
 import traceback
 from settings import settings
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import PydanticOutputParser
-from ai import router
+from ai import router, get_basic_action_response_from_chat_history
 from db import (
     create_user,
     get_user_portfolio,
@@ -125,9 +126,33 @@ async def update_user_profile(
 
 
 @app.post("/actions")
-async def create_action(request: CreateActionRequest) -> Action:
+async def create_action(request: CreateActionRequest) -> CreateActionResponse:
     try:
-        return await create_action_for_user(request)
+        ai_response_stream = await get_basic_action_response_from_chat_history(
+            [
+                {
+                    "content": request.user_message,
+                    "role": "user",
+                }
+            ]
+        )
+        ai_response = ""
+        async for chunk in ai_response_stream:
+            ai_response = chunk
+
+        ai_response = ai_response.model_dump()
+
+        action = await create_action_for_user(
+            request.title,
+            request.user_id,
+            request.user_message,
+            json.dumps(ai_response),
+        )
+
+        return {
+            "ai_response": ai_response,
+            "action": action,
+        }
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))

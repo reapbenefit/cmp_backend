@@ -21,10 +21,6 @@ class ChatHistoryMessage(BaseModel):
     role: ChatRole
 
 
-class ChatHistoryMessageWithMode(ChatHistoryMessage):
-    mode: Optional[ChatMode] = None
-
-
 class ActionType(str, Enum):
     MAPPING_ASSET_OR_ISSUE = "Mapping asset or issue"
     JOINED_A_CAMPAIGN = "Joined a Campaign"
@@ -267,7 +263,7 @@ class UpdateUserProfileRequest(BaseModel):
 class CreateActionRequest(BaseModel):
     user_id: int
     title: str | None = None
-    user_message: str | None = None
+    user_message: str
 
 
 class AddChatMessageRequest(BaseModel):
@@ -359,6 +355,22 @@ class AIUpdateActionMetadataResponse(AIActionMetadataResponse):
     has_changed: bool
 
 
+class BasicActionChatRequest(BaseModel):
+    action_uuid: str
+    last_user_message: str
+
+
+class DetailActionChatRequest(BaseModel):
+    action_uuid: str
+    last_user_message: str
+
+
 class AIChatResponse(BaseModel):
+    chain_of_thought: str
     response: str
     is_done: bool
+
+
+class CreateActionResponse(BaseModel):
+    ai_response: AIChatResponse
+    action: Action
