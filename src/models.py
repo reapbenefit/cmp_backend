@@ -261,8 +261,7 @@ class UpdateUserProfileRequest(BaseModel):
 
 
 class CreateActionRequest(BaseModel):
-    user_id: int
-    title: str | None = None
+    user_email: str
     user_message: str
 
 

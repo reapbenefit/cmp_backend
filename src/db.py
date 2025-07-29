@@ -539,7 +539,7 @@ async def get_action_from_uuid(action_uuid: str):
 
 async def create_action_for_user(
     action_title: str,
-    action_user_id: int,
+    action_user_email: str,
     user_message: str,
     ai_message: str,
 ):
@@ -549,17 +549,17 @@ async def create_action_for_user(
         action_uuid = str(uuid.uuid4())
 
         await cursor.execute(
+            f"SELECT id FROM {users_table_name} WHERE email = ?",
+            (action_user_email,),
+        )
+        action_user_id = (await cursor.fetchone())[0]
+
+        await cursor.execute(
             f"INSERT INTO {actions_table_name} (user_id, title, status, uuid) VALUES (?, ?, ?, ?)",
             (action_user_id, action_title, "draft", action_uuid),
         )
 
         action_id = cursor.lastrowid
-
-        await cursor.execute(
-            f"SELECT email FROM {users_table_name} WHERE id = ?",
-            (action_user_id,),
-        )
-        user_email = (await cursor.fetchone())[0]
 
         await cursor.execute(
             f"INSERT INTO {chat_history_table_name} (action_id, role, content, response_type) VALUES (?, ?, ?, ?)",
@@ -574,10 +574,10 @@ async def create_action_for_user(
         await conn.commit()
 
         await add_message_to_chat_history(
-            action_uuid, user_email, "user", user_message, "text"
+            action_uuid, action_user_email, "user", user_message, "text"
         )
         await add_message_to_chat_history(
-            action_uuid, user_email, "assistant", ai_message, "text"
+            action_uuid, action_user_email, "assistant", ai_message, "text"
         )
 
         return await get_action_for_user(action_id)

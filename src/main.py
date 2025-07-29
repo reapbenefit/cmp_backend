@@ -143,8 +143,8 @@ async def create_action(request: CreateActionRequest) -> CreateActionResponse:
         ai_response = ai_response.model_dump()
 
         action = await create_action_for_user(
-            request.title,
-            request.user_id,
+            "New Action",
+            request.user_email,
             request.user_message,
             json.dumps(ai_response),
         )
