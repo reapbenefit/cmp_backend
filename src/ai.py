@@ -438,23 +438,18 @@ async def update_action_metadata(
     action_metadata = await get_action_metadata_from_chat_history(chat_history)
     action = await get_action_from_uuid(action_uuid)
 
-    skills = []
-    has_action_type_changed = action["type"] != action_metadata["action_type"]
-
-    if has_action_type_changed:
-        skills = await get_skills_from_action(
-            chat_history,
-            action_metadata["action_type"],
-            action_metadata["action_category"],
-            action_metadata["action_subcategory"],
-            action_metadata["action_subtype"],
-            action_metadata["action_title"],
-            action_metadata["action_description"],
-        )
+    # get updated skill relevance
+    skills = await get_skills_from_action(
+        chat_history,
+        action_metadata["action_type"],
+        action_metadata["action_category"],
+        action_metadata["action_subcategory"],
+        action_metadata["action_subtype"],
+        action_metadata["action_title"],
+        action_metadata["action_description"],
+    )
 
     action_metadata["skills"] = skills
-
-    print(skills)
 
     action = await update_action_for_user(
         action_uuid,
@@ -475,6 +470,6 @@ async def update_action_metadata(
     )
 
     return {
-        "has_changed": has_action_type_changed,
+        "has_changed": action["type"] != action_metadata["action_type"],
         **action_metadata,
     }
