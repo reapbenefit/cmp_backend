@@ -355,6 +355,10 @@ class AIActionMetadataResponse(BaseModel):
     skills: List[ActionSkill]
 
 
+class AIUpdateActionMetadataResponse(AIActionMetadataResponse):
+    has_changed: bool
+
+
 class AIChatResponse(BaseModel):
     response: str
     is_done: bool

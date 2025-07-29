@@ -3,6 +3,7 @@ import json
 from fastapi import HTTPException
 import asyncpg
 from settings import settings
+from typing import Literal
 
 
 async def get_db_connection():
@@ -68,11 +69,12 @@ def get_user_profile(email: str):
     return response.json()["message"]
 
 
-async def create_action_on_frappe(
+async def create_or_update_action_on_frappe(
     action_id: int,
     action_uuid: str,
     subcategory: str,
     subtype: str,
+    mode: Literal["create", "update"] = "create",
 ):
     from db import get_action_for_user
 
@@ -100,7 +102,9 @@ async def create_action_on_frappe(
         "Content-Type": "application/json",
     }
 
-    response = requests.request("POST", url, headers=headers, data=payload)
+    response = requests.request(
+        "POST" if mode == "create" else "PUT", url, headers=headers, data=payload
+    )
 
     if response.status_code != 200:
         raise Exception(

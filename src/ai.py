@@ -1,5 +1,5 @@
 import json
-from typing import Dict
+from typing import Dict, List
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -17,10 +17,12 @@ from models import (
     AIChatResponse,
     ActionSubCategory,
     ChatMode,
+    AIUpdateActionMetadataResponse,
 )
 from settings import settings
 from utils import extract_skill_from_action_type
-from db import get_skills_data_from_names
+from frappe import create_or_update_action_on_frappe
+from db import get_skills_data_from_names, get_action_from_uuid, update_action_for_user
 from openinference.instrumentation import using_attributes
 
 router = APIRouter()
@@ -230,8 +232,9 @@ If the student still struggles to respond meaningfully, do not end the conversat
 - Remember that each of their answers is a bonus on top of the basic action details they have already given before. So, treat every response as such and keep motivating them to continue responding throughout the conversation.
 
 ### Closing Behaviour
-After all questions (default 7–10), end with a motivational summary (e.g. “Thanks for sharing this story. You showed leadership and creativity — especially when you brought your community together to clean the well.”), offer soft nudges (e.g. “Would you like this story to be verified and shared with the wider Solve Ninja community?”, " “You’ve done something meaningful. If you’re open to mentoring others or need help with next steps, we’re here.”, etc.) if applicable, and end with a kind, motivational message based on what they shared along with highlight at least one clear strength (e.g. “You showed creativity and care. That’s inspiring.”).
+After all questions (default 7–10), end with a motivational summary (e.g. “Thanks for sharing this story. You showed leadership and creativity — especially when you brought your community together to clean the well.”), offer soft nudges (e.g. You can share this story with the wider Solve Ninja community in our Changemaker Adda”, " “You’ve done something meaningful. If you’re open to mentoring others or need help with next steps, we’re here.”, etc.) if applicable, and end with a kind, motivational message based on what they shared along with highlight at least one clear strength (e.g. “You showed creativity and care. That’s inspiring.”).
 - Do not ask “Anything else?” or leave the conversation open-ended.
+- Always mention that the action details have been updated in their portfolio when the conversation is done.
 
 ### Style Tip
 * Do not use em-dashes (--) in your replies. Use commas or short phrases instead, as humans naturally do in conversation.""",
@@ -249,7 +252,7 @@ After all questions (default 7–10), end with a motivational summary (e.g. “T
     )
 
 
-def transform_chat_history_to_prompt(chat_history: list[ChatHistoryMessage]) -> str:
+def transform_chat_history_to_prompt(chat_history: List[ChatHistoryMessage]) -> str:
     return "\n".join(
         [
             f"{chat_response.role.capitalize()}: {chat_response.content}"
@@ -258,8 +261,7 @@ def transform_chat_history_to_prompt(chat_history: list[ChatHistoryMessage]) -> 
     )
 
 
-@router.post("/ai/extract_action_metadata", response_model=AIActionMetadataResponse)
-async def extract_action_metadata(chat_history: list[ChatHistoryMessage]):
+async def get_action_metadata_from_chat_history(chat_history: List[ChatHistoryMessage]):
     class Output(BaseModel):
         action_title: str = Field(
             description="A short title for the action (less than 5 words)"
@@ -304,7 +306,26 @@ async def extract_action_metadata(chat_history: list[ChatHistoryMessage]):
             max_output_tokens=8096,
         )
 
-    skills = extract_skill_from_action_type(response.action_type)
+    return {
+        "action_title": response.action_title,
+        "action_description": response.action_description,
+        "action_type": response.action_type,
+        "action_category": response.action_category,
+        "action_subcategory": response.action_subcategory,
+        "action_subtype": response.action_subtype,
+    }
+
+
+async def get_skills_from_action(
+    chat_history: List[ChatHistoryMessage],
+    action_type: ActionType,
+    action_category: ActionCategory,
+    action_subcategory: ActionSubCategory,
+    action_subtype: ActionType,
+    action_title: str,
+    action_description: str,
+):
+    skills = extract_skill_from_action_type(action_type)
     skills = await get_skills_data_from_names(skills)
 
     class SkillRelevance(BaseModel):
@@ -326,17 +347,19 @@ async def extract_action_metadata(chat_history: list[ChatHistoryMessage]):
     parser = PydanticOutputParser(pydantic_object=SkillRelevanceOutput)
     format_instructions = parser.get_format_instructions()
 
+    chat_history_prompt = transform_chat_history_to_prompt(chat_history)
+
     skill_relevance_system_prompt = f"""Analyze a student's action and the corresponding conversation history to provide a personalized, one-line description of how each listed skill is demonstrated in that context as 2 fields for each skill: `relevance`, for a person viewing the student's action; `response`, for the student.\n\nReview the conversation thoroughly and connect specific elements of it to the skills listed. Each description should clearly link an aspect of the conversation to the demonstration of a particular skill.\n\n# Examples\n\n**Example** (shortened for illustration purposes; real examples should detail specific parts of the conversation):\n- **Problem-Solving**: The student's question about alternative solutions shows proactive engagement.\n\n- **Communication**: The clear explanation of their thought process demonstrates effective communication.\n\n- **Critical Thinking**: The student’s questioning of assumptions indicates critical evaluation of information.\n\n# Notes\n\nConsider nuances such as tone, clarity, and depth of the conversation that might subtly demonstrate skills. Each description should be crafted to reflect both the conversation content and the student’s unique expression of the skill.\n\n### Output format\n\n{format_instructions}"""
 
     with using_attributes(
         metadata={
             "stage": "skill_relevance",
-            "action_type": response.action_type,
-            "action_category": response.action_category,
-            "action_subcategory": response.action_subcategory,
-            "action_subtype": response.action_subtype,
-            "action_title": response.action_title,
-            "action_description": response.action_description,
+            "action_type": action_type,
+            "action_category": action_category,
+            "action_subcategory": action_subcategory,
+            "action_subtype": action_subtype,
+            "action_title": action_title,
+            "action_description": action_description,
         },
     ):
         skill_relevance_response = await run_llm_responses_with_instructor(
@@ -367,12 +390,91 @@ async def extract_action_metadata(chat_history: list[ChatHistoryMessage]):
             "response"
         ] = skill_relevance.response
 
+    return skills
+
+
+@router.post("/ai/extract_action_metadata", response_model=AIActionMetadataResponse)
+async def extract_action_metadata(
+    chat_history: list[ChatHistoryMessage], action_uuid: str
+):
+    action_metadata = await get_action_metadata_from_chat_history(chat_history)
+    skills = await get_skills_from_action(
+        chat_history,
+        action_metadata["action_type"],
+        action_metadata["action_category"],
+        action_metadata["action_subcategory"],
+        action_metadata["action_subtype"],
+        action_metadata["action_title"],
+        action_metadata["action_description"],
+    )
+    action_metadata["skills"] = skills
+
+    action = await update_action_for_user(
+        action_uuid,
+        action_metadata["action_title"],
+        action_metadata["action_description"],
+        "published",
+        action_metadata["action_category"],
+        action_metadata["action_type"],
+        action_metadata["skills"],
+    )
+    await create_or_update_action_on_frappe(
+        action["id"],
+        action_uuid,
+        action_metadata["action_subcategory"],
+        action_metadata["action_subtype"],
+        mode="create",
+    )
+
+    return action_metadata
+
+
+@router.post(
+    "/ai/update_action_metadata", response_model=AIUpdateActionMetadataResponse
+)
+async def update_action_metadata(
+    chat_history: list[ChatHistoryMessage], action_uuid: str
+):
+    action_metadata = await get_action_metadata_from_chat_history(chat_history)
+    action = await get_action_from_uuid(action_uuid)
+
+    skills = []
+    has_action_type_changed = action["type"] != action_metadata["action_type"]
+
+    if has_action_type_changed:
+        skills = await get_skills_from_action(
+            chat_history,
+            action_metadata["action_type"],
+            action_metadata["action_category"],
+            action_metadata["action_subcategory"],
+            action_metadata["action_subtype"],
+            action_metadata["action_title"],
+            action_metadata["action_description"],
+        )
+
+    action_metadata["skills"] = skills
+
+    print(skills)
+
+    action = await update_action_for_user(
+        action_uuid,
+        action_metadata["action_title"],
+        action_metadata["action_description"],
+        action["status"],  # keep the same status
+        action_metadata["action_category"],
+        action_metadata["action_type"],
+        action_metadata["skills"],
+    )
+
+    await create_or_update_action_on_frappe(
+        action["id"],
+        action_uuid,
+        action_metadata["action_subcategory"],
+        action_metadata["action_subtype"],
+        mode="update",
+    )
+
     return {
-        "action_title": response.action_title,
-        "action_description": response.action_description,
-        "action_type": response.action_type,
-        "action_category": response.action_category,
-        "action_subcategory": response.action_subcategory,
-        "action_subtype": response.action_subtype,
-        "skills": skills,
+        "has_changed": has_action_type_changed,
+        **action_metadata,
     }

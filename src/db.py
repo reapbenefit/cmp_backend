@@ -524,6 +524,19 @@ async def get_action_for_user(action_id: int):
         }
 
 
+async def get_action_from_uuid(action_uuid: str):
+    async with get_new_db_connection() as conn:
+        cursor = await conn.cursor()
+
+        result = await cursor.execute(
+            f"SELECT id FROM {actions_table_name} WHERE uuid = ?",
+            (action_uuid,),
+        )
+        action_id = (await result.fetchone())[0]
+
+    return await get_action_for_user(action_id)
+
+
 async def create_action_for_user(action: CreateActionRequest):
     async with get_new_db_connection() as conn:
         cursor = await conn.cursor()
@@ -663,7 +676,15 @@ async def get_skills_data_from_names(skill_names: List[str]) -> List[Skill]:
         ]
 
 
-async def update_action_for_user(action_uuid: str, request: UpdateActionRequest):
+async def update_action_for_user(
+    action_uuid: str,
+    title: str,
+    description: str,
+    status: str,
+    category: str,
+    action_type: str,
+    skills: List[Dict],
+):
     async with get_new_db_connection() as conn:
         cursor = await conn.cursor()
 
@@ -676,24 +697,24 @@ async def update_action_for_user(action_uuid: str, request: UpdateActionRequest)
         await cursor.execute(
             f"UPDATE {actions_table_name} SET title = ?, description = ?, status = ?, category = ?, type = ? WHERE id = ?",
             (
-                request.title,
-                request.description,
-                request.status,
-                request.category,
-                request.type,
+                title,
+                description,
+                status,
+                category,
+                action_type,
                 action_id,
             ),
         )
 
-        if request.skills:
+        if skills:
             await cursor.execute(
                 f"DELETE FROM {action_skills_table_name} WHERE action_id = ?",
                 (action_id,),
             )
 
             values = []
-            for skill in request.skills:
-                values.append((action_id, skill.id, skill.relevance))
+            for skill in skills:
+                values.append((action_id, skill["id"], skill["relevance"]))
 
             await cursor.executemany(
                 f"INSERT INTO {action_skills_table_name} (action_id, skill_id, summary) VALUES (?, ?, ?)",

@@ -31,10 +31,9 @@ from db import (
     get_action_chat_history,
     add_messages_to_action_history,
     get_all_chat_sessions_for_user,
-    update_action_for_user,
     get_user_id_by_email,
 )
-from frappe import create_action_on_frappe, login_user
+from frappe import login_user
 from llm import stream_llm_with_instructor
 
 app = FastAPI()
@@ -157,22 +156,6 @@ async def add_chat_messages_for_action(
     try:
         return await add_messages_to_action_history(action_uuid, messages)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.put("/actions/{action_uuid}")
-async def update_action(action_uuid: str, request: UpdateActionRequest) -> Action:
-    try:
-        action = await update_action_for_user(action_uuid, request)
-        await create_action_on_frappe(
-            action["id"],
-            action_uuid,
-            request.subcategory,
-            request.subtype,
-        )
-        return action
-    except Exception as e:
-        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 
