@@ -494,6 +494,8 @@ async def update_action_metadata(action_uuid: str):
     action_metadata = await get_action_metadata_from_chat_history(chat_history)
     action = await get_action_from_uuid(action_uuid)
 
+    has_changed = action["type"] != action_metadata["action_type"]
+
     # get updated skill relevance
     skills = await get_skills_from_action(
         chat_history,
@@ -526,6 +528,6 @@ async def update_action_metadata(action_uuid: str):
     )
 
     return {
-        "has_changed": action["type"] != action_metadata["action_type"],
+        "has_changed": has_changed,
         **action_metadata,
     }
