@@ -28,6 +28,7 @@ RUN echo '#!/bin/bash\n\
     echo "PHOENIX_API_KEY=${PHOENIX_API_KEY}" >> /app/src/.env\n\
     echo "PHOENIX_ENDPOINT=${PHOENIX_ENDPOINT}" >> /app/src/.env\n\
     echo "ENV=${ENV}" >> /app/src/.env\n\
+    echo "DATABASE_URL=${DATABASE_URL}" >> /app/src/.env\n\
     exec "$@"' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # Expose port
