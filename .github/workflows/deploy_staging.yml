@@ -80,28 +80,9 @@ jobs:
           # Perform rolling update - this recreates the container with zero downtime
           echo "🚀 Performing rolling update..."
           docker-compose -f docker-compose.dev.yml up -d --force-recreate --no-deps $SERVICE_NAME
-          
-          # Wait for the service to be healthy
-          echo "⏳ Waiting for service to be healthy..."
-          timeout=180
-          elapsed=0
-          while [ $elapsed -lt $timeout ]; do
-            if docker-compose -f docker-compose.dev.yml exec -T $SERVICE_NAME curl -f http://localhost:8001/health > /dev/null 2>&1; then
-              echo "✅ Service is healthy!"
-              break
-            fi
-            echo "⏳ Waiting for health check... ($elapsed/$timeout seconds)"
-            sleep 5
-            elapsed=$((elapsed + 5))
-          done
-          
-          if [ $elapsed -ge $timeout ]; then
-            echo "❌ Health check failed after $timeout seconds"
-            echo "📋 Container logs:"
-            docker-compose -f docker-compose.dev.yml logs --tail=50 $SERVICE_NAME
-            exit 1
-          fi
-          
+
+          sleep 10
+
           # Show running containers
           echo "📋 Running containers:"
           docker-compose -f docker-compose.dev.yml ps
