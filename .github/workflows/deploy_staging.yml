@@ -69,7 +69,7 @@ jobs:
           export FRAPPE_BACKEND_CLIENT_SECRET="${{ secrets.FRAPPE_BACKEND_CLIENT_SECRET }}"
           export DATABASE_URL="${{ secrets.DATABASE_URL }}"
           
-          docker-compose -f docker-compose.dev.yml down && docker-compose -f docker-compose.dev.yml pull && docker-compose.dev.yml up -d
+          docker-compose -f docker-compose.dev.yml down && docker-compose -f docker-compose.dev.yml pull && docker-compose -f docker-compose.dev.yml up -d
 
           sleep 10
 
