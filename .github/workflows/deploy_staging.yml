@@ -71,33 +71,33 @@ jobs:
           
           # Clean up any stale containers to avoid ContainerConfig errors
           echo "🧹 Cleaning up stale containers..."
-          docker rm -f $(docker ps -aq) 2>/dev/null || true
-          docker rmi $(docker images -f "dangling=true" -q) 2>/dev/null || true
+          docker stop $(docker ps -aq) 2>/dev/null || true
+          docker rm $(docker ps -aq) 2>/dev/null || true
           
           # Get service name from docker-compose file
-          SERVICE_NAME=$(docker compose -f docker-compose.dev.yml config --services | head -1)
+          SERVICE_NAME=$(docker-compose -f docker-compose.dev.yml config --services | head -1)
           echo "🔧 Using service: $SERVICE_NAME"
           
           # Stop and remove existing containers gracefully
           echo "🛑 Stopping existing containers..."
-          docker compose -f docker-compose.dev.yml down --remove-orphans || true
+          docker-compose -f docker-compose.dev.yml down 2>/dev/null || true
           
           # Pull the latest image
           echo "🔄 Pulling latest image..."
-          docker compose -f docker-compose.dev.yml pull $SERVICE_NAME
+          docker-compose -f docker-compose.dev.yml pull $SERVICE_NAME
           
           # Start the new container
           echo "🚀 Starting new container..."
-          docker compose -f docker-compose.dev.yml up -d $SERVICE_NAME
+          docker-compose -f docker-compose.dev.yml up -d $SERVICE_NAME
 
           sleep 10
 
           # Show running containers
           echo "📋 Running containers:"
-          docker compose -f docker-compose.dev.yml ps
+          docker-compose -f docker-compose.dev.yml ps
           
-          # Clean up dangling and unused images (but keep currently used ones)
+          # Clean up dangling images using basic commands
           echo "🧹 Cleaning up unused Docker images..."
-          docker rmi $(docker images -f "dangling=true" -q) 2>/dev/null || true
+          docker images | grep "<none>" | awk '{print $3}' | xargs docker rmi 2>/dev/null || true
 
           echo "🎉 Deployment completed successfully!"
