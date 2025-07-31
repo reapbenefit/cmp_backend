@@ -29,6 +29,9 @@ RUN echo '#!/bin/bash\n\
     echo "PHOENIX_ENDPOINT=${PHOENIX_ENDPOINT}" >> /app/src/.env\n\
     echo "ENV=${ENV}" >> /app/src/.env\n\
     echo "DATABASE_URL=${DATABASE_URL}" >> /app/src/.env\n\
+    echo "FRAPPE_BACKEND_BASE_URL=${FRAPPE_BACKEND_BASE_URL}" >> /app/src/.env\n\
+    echo "FRAPPE_BACKEND_CLIENT_ID=${FRAPPE_BACKEND_CLIENT_ID}" >> /app/src/.env\n\
+    echo "FRAPPE_BACKEND_CLIENT_SECRET=${FRAPPE_BACKEND_CLIENT_SECRET}" >> /app/src/.env\n\
     exec "$@"' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # Expose port
