@@ -69,10 +69,10 @@ jobs:
           export FRAPPE_BACKEND_CLIENT_SECRET="${{ secrets.FRAPPE_BACKEND_CLIENT_SECRET }}"
           export DATABASE_URL="${{ secrets.DATABASE_URL }}"
           
-          # Clean up any stale containers and networks to avoid ContainerConfig errors
-          echo "🧹 Cleaning up stale containers and networks..."
-          docker system prune -f --volumes || true
-          docker network prune -f || true
+          # Clean up any stale containers to avoid ContainerConfig errors
+          echo "🧹 Cleaning up stale containers..."
+          docker rm -f $(docker ps -aq) 2>/dev/null || true
+          docker rmi $(docker images -f "dangling=true" -q) 2>/dev/null || true
           
           # Get service name from docker-compose file
           SERVICE_NAME=$(docker compose -f docker-compose.dev.yml config --services | head -1)
@@ -98,4 +98,6 @@ jobs:
           
           # Clean up dangling and unused images (but keep currently used ones)
           echo "🧹 Cleaning up unused Docker images..."
-          docker image prune -f
+          docker rmi $(docker images -f "dangling=true" -q) 2>/dev/null || true
+
+          echo "🎉 Deployment completed successfully!"
