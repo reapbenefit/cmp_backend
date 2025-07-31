@@ -31,23 +31,15 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         
-    - name: Deploy to EC2
+    - name: Create deployment directory on EC2
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          # Create deployment directory
           mkdir -p ~/rb-backend-deploy
-          cd ~/rb-backend-deploy
-          
-          # Stop existing services
-          docker-compose down || true
-          
-          # Clean up old images
-          docker image prune -f
-          
+        
     - name: Copy docker-compose.yml to EC2
       uses: appleboy/scp-action@v0.1.4
       with:
@@ -55,9 +47,10 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         source: "docker-compose.prod.yml"
-        target: "~/rb-backend-deploy/docker-compose.prod.yml"
+        target: "~/rb-backend-deploy/"
+        overwrite: true
         
-    - name: Start services with docker-compose
+    - name: Deploy to EC2
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.EC2_HOST }}
@@ -66,7 +59,7 @@ jobs:
         script: |
           cd ~/rb-backend-deploy
           
-          # Set environment variables and start services
+          # Set environment variables
           export DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
           export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
           export PHOENIX_API_KEY="${{ secrets.PHOENIX_API_KEY }}"
@@ -77,9 +70,35 @@ jobs:
           export FRAPPE_BACKEND_CLIENT_SECRET="${{ secrets.FRAPPE_BACKEND_CLIENT_SECRET }}"
           export DATABASE_URL="${{ secrets.DATABASE_URL }}"
           
-          # Pull latest image and start services
-          docker-compose -f docker-compose.prod.yml pull
-          docker-compose -f docker-compose.prod.yml up -d
+          # Clean up any stale containers to avoid ContainerConfig errors
+          echo "🧹 Cleaning up stale containers..."
+          docker stop $(docker ps -aq) 2>/dev/null || true
+          docker rm $(docker ps -aq) 2>/dev/null || true
           
+          # Get service name from docker-compose file
+          SERVICE_NAME=$(docker-compose -f docker-compose.prod.yml config --services | head -1)
+          echo "🔧 Using service: $SERVICE_NAME"
+          
+          # Stop and remove existing containers gracefully
+          echo "🛑 Stopping existing containers..."
+          docker-compose -f docker-compose.prod.yml down 2>/dev/null || true
+          
+          # Pull the latest image
+          echo "🔄 Pulling latest image..."
+          docker-compose -f docker-compose.prod.yml pull $SERVICE_NAME
+          
+          # Start the new container
+          echo "🚀 Starting new container..."
+          docker-compose -f docker-compose.prod.yml up -d $SERVICE_NAME
+
+          sleep 10
+
           # Show running containers
-          docker-compose -f docker-compose.prod.yml ps 
+          echo "📋 Running containers:"
+          docker-compose -f docker-compose.prod.yml ps
+          
+          # Clean up dangling images using basic commands
+          echo "🧹 Cleaning up unused Docker images..."
+          docker images | grep "<none>" | awk '{print $3}' | xargs docker rmi 2>/dev/null || true
+
+          echo "🎉 Deployment completed successfully!"
