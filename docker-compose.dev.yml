@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   cmp-backend:
+    container_name: cmp-backend-dev
     image: adalmia/rb-cmp-backend:dev
     ports:
       - "8002:8001"
