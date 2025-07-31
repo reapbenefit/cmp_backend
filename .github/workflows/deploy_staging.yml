@@ -49,7 +49,7 @@ jobs:
         target: "~/rb-backend-deploy/"
         overwrite: true
         
-    - name: Zero-downtime deployment to EC2
+    - name: Deploy to EC2
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.EC2_HOST }}
@@ -69,26 +69,33 @@ jobs:
           export FRAPPE_BACKEND_CLIENT_SECRET="${{ secrets.FRAPPE_BACKEND_CLIENT_SECRET }}"
           export DATABASE_URL="${{ secrets.DATABASE_URL }}"
           
+          # Clean up any stale containers and networks to avoid ContainerConfig errors
+          echo "🧹 Cleaning up stale containers and networks..."
+          docker system prune -f --volumes || true
+          docker network prune -f || true
+          
           # Get service name from docker-compose file
-          SERVICE_NAME=$(docker-compose -f docker-compose.dev.yml config --services | head -1)
+          SERVICE_NAME=$(docker compose -f docker-compose.dev.yml config --services | head -1)
           echo "🔧 Using service: $SERVICE_NAME"
           
-          # Pull the latest image while old container is still running
-          echo "🔄 Pulling latest image..."
-          docker-compose -f docker-compose.dev.yml pull $SERVICE_NAME
+          # Stop and remove existing containers gracefully
+          echo "🛑 Stopping existing containers..."
+          docker compose -f docker-compose.dev.yml down --remove-orphans || true
           
-          # Perform rolling update - this recreates the container with zero downtime
-          echo "🚀 Performing rolling update..."
-          docker-compose -f docker-compose.dev.yml up -d --force-recreate --no-deps $SERVICE_NAME
+          # Pull the latest image
+          echo "🔄 Pulling latest image..."
+          docker compose -f docker-compose.dev.yml pull $SERVICE_NAME
+          
+          # Start the new container
+          echo "🚀 Starting new container..."
+          docker compose -f docker-compose.dev.yml up -d $SERVICE_NAME
 
           sleep 10
 
           # Show running containers
           echo "📋 Running containers:"
-          docker-compose -f docker-compose.dev.yml ps
+          docker compose -f docker-compose.dev.yml ps
           
           # Clean up dangling and unused images (but keep currently used ones)
           echo "🧹 Cleaning up unused Docker images..."
           docker image prune -f
-
-          echo "🎉 Zero-downtime deployment completed successfully!" 
