@@ -47,6 +47,7 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         source: "docker-compose.dev.yml"
         target: "~/rb-backend-deploy/"
+        overwrite: true
         
     - name: Zero-downtime deployment to EC2
       uses: appleboy/ssh-action@v1.0.0
