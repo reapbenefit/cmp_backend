@@ -30,23 +30,15 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         
-    - name: Deploy to EC2
+    - name: Create deployment directory on EC2
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          # Create deployment directory
           mkdir -p ~/rb-backend-deploy
-          cd ~/rb-backend-deploy
-          
-          # Stop existing services
-          docker-compose down || true
-          
-          # Clean up old images
-          docker image prune -f
-          
+        
     - name: Copy docker-compose.yml to EC2
       uses: appleboy/scp-action@v0.1.4
       with:
@@ -56,7 +48,7 @@ jobs:
         source: "docker-compose.dev.yml"
         target: "~/rb-backend-deploy/docker-compose.dev.yml"
         
-    - name: Start services with docker-compose
+    - name: Zero-downtime deployment to EC2
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.EC2_HOST }}
@@ -65,7 +57,7 @@ jobs:
         script: |
           cd ~/rb-backend-deploy
           
-          # Set environment variables and start services
+          # Set environment variables
           export DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
           export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
           export PHOENIX_API_KEY="${{ secrets.PHOENIX_API_KEY }}"
@@ -76,9 +68,45 @@ jobs:
           export FRAPPE_BACKEND_CLIENT_SECRET="${{ secrets.FRAPPE_BACKEND_CLIENT_SECRET }}"
           export DATABASE_URL="${{ secrets.DATABASE_URL }}"
           
-          # Pull latest image and start services
-          docker-compose -f docker-compose.dev.yml pull
-          docker-compose -f docker-compose.dev.yml up -d
+          # Get service name from docker-compose file
+          SERVICE_NAME=$(docker-compose -f docker-compose.dev.yml config --services | head -1)
+          echo "🔧 Using service: $SERVICE_NAME"
+          
+          # Pull the latest image while old container is still running
+          echo "🔄 Pulling latest image..."
+          docker-compose -f docker-compose.dev.yml pull $SERVICE_NAME
+          
+          # Perform rolling update - this recreates the container with zero downtime
+          echo "🚀 Performing rolling update..."
+          docker-compose -f docker-compose.dev.yml up -d --force-recreate --no-deps $SERVICE_NAME
+          
+          # Wait for the service to be healthy
+          echo "⏳ Waiting for service to be healthy..."
+          timeout=180
+          elapsed=0
+          while [ $elapsed -lt $timeout ]; do
+            if docker-compose -f docker-compose.dev.yml exec -T $SERVICE_NAME curl -f http://localhost:8001/health > /dev/null 2>&1; then
+              echo "✅ Service is healthy!"
+              break
+            fi
+            echo "⏳ Waiting for health check... ($elapsed/$timeout seconds)"
+            sleep 5
+            elapsed=$((elapsed + 5))
+          done
+          
+          if [ $elapsed -ge $timeout ]; then
+            echo "❌ Health check failed after $timeout seconds"
+            echo "📋 Container logs:"
+            docker-compose -f docker-compose.dev.yml logs --tail=50 $SERVICE_NAME
+            exit 1
+          fi
           
           # Show running containers
-          docker-compose -f docker-compose.dev.yml ps 
+          echo "📋 Running containers:"
+          docker-compose -f docker-compose.dev.yml ps
+          
+          # Clean up dangling and unused images (but keep currently used ones)
+          echo "🧹 Cleaning up unused Docker images..."
+          docker image prune -f
+
+          echo "🎉 Zero-downtime deployment completed successfully!" 
