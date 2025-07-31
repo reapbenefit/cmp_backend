@@ -1,11 +1,13 @@
 name: Deploy to EC2
 
 on:
-  workflow_dispatch:
+  release:
+    types: [published]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: Production
     
     steps:
     - name: Checkout code
@@ -52,8 +54,8 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: "docker-compose.yml"
-        target: "~/rb-backend-deploy/"
+        source: "docker-compose.prod.yml"
+        target: "~/rb-backend-deploy/docker-compose.yml"
         
     - name: Start services with docker-compose
       uses: appleboy/ssh-action@v1.0.0
@@ -70,6 +72,10 @@ jobs:
           export PHOENIX_API_KEY="${{ secrets.PHOENIX_API_KEY }}"
           export PHOENIX_ENDPOINT="${{ secrets.PHOENIX_ENDPOINT }}"
           export ENV="${{ secrets.ENV }}"
+          export FRAPPE_BACKEND_BASE_URL="${{ secrets.FRAPPE_BACKEND_BASE_URL }}"
+          export FRAPPE_BACKEND_CLIENT_ID="${{ secrets.FRAPPE_BACKEND_CLIENT_ID }}"
+          export FRAPPE_BACKEND_CLIENT_SECRET="${{ secrets.FRAPPE_BACKEND_CLIENT_SECRET }}"
+          export DATABASE_URL="${{ secrets.DATABASE_URL }}"
           
           # Pull latest image and start services
           docker-compose pull

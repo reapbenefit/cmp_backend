@@ -2,9 +2,9 @@ version: '3.8'
 
 services:
   cmp-backend:
-    image: adalmia/rb-cmp-backend:latest
+    image: adalmia/rb-cmp-backend:dev
     ports:
-      - "8001:8001"
+      - "8002:8001"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - PHOENIX_API_KEY=${PHOENIX_API_KEY}
@@ -13,6 +13,7 @@ services:
       - FRAPPE_BACKEND_BASE_URL=${FRAPPE_BACKEND_BASE_URL}
       - FRAPPE_BACKEND_CLIENT_ID=${FRAPPE_BACKEND_CLIENT_ID}
       - FRAPPE_BACKEND_CLIENT_SECRET=${FRAPPE_BACKEND_CLIENT_SECRET}
+      - DATABASE_URL=${DATABASE_URL}
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
@@ -21,4 +22,4 @@ services:
       retries: 3
       start_period: 40s
     volumes:
-      - /appdata:/appdata
+      - /appdata_dev:/appdata
