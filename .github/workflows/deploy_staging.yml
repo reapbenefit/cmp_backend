@@ -69,26 +69,7 @@ jobs:
           export FRAPPE_BACKEND_CLIENT_SECRET="${{ secrets.FRAPPE_BACKEND_CLIENT_SECRET }}"
           export DATABASE_URL="${{ secrets.DATABASE_URL }}"
           
-          # Clean up any stale containers to avoid ContainerConfig errors
-          echo "🧹 Cleaning up stale containers..."
-          docker stop $(docker ps -aq) 2>/dev/null || true
-          docker rm $(docker ps -aq) 2>/dev/null || true
-          
-          # Get service name from docker-compose file
-          SERVICE_NAME=$(docker-compose -f docker-compose.dev.yml config --services | head -1)
-          echo "🔧 Using service: $SERVICE_NAME"
-          
-          # Stop and remove existing containers gracefully
-          echo "🛑 Stopping existing containers..."
-          docker-compose -f docker-compose.dev.yml down 2>/dev/null || true
-          
-          # Pull the latest image
-          echo "🔄 Pulling latest image..."
-          docker-compose -f docker-compose.dev.yml pull $SERVICE_NAME
-          
-          # Start the new container
-          echo "🚀 Starting new container..."
-          docker-compose -f docker-compose.dev.yml up -d $SERVICE_NAME
+          docker-compose -f docker-compose.dev.yml down && docker-compose -f docker-compose.dev.yml pull && docker-compose.dev.yml up -d
 
           sleep 10
 
