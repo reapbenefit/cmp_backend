@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  cmp-backend:
+  cmp-backend-prod:
     container_name: cmp-backend-prod
     image: adalmia/rb-cmp-backend:latest
     ports:
