@@ -97,8 +97,8 @@ Once you have marked the conversation as done, the accompanying feedback should 
         )
 
 
-@router.post("/ai/basic_action_chat", response_model=AIChatResponse)
-async def basic_action_chat(request: BasicActionChatRequest):
+@router.post("/ai/basic_action_chat_stream", response_model=AIChatResponse)
+async def basic_action_chat_stream(request: BasicActionChatRequest):
     chat_history = await get_action_chat_history(request.action_uuid)
 
     chat_history = [
@@ -126,6 +126,15 @@ async def basic_action_chat(request: BasicActionChatRequest):
         stream_response(),
         media_type="application/x-ndjson",
     )
+
+
+@router.post("/ai/basic_action_chat", response_model=AIChatResponse)
+async def basic_action_chat(request: BasicActionChatRequest):
+    stream = await basic_action_chat_stream(request)
+    final_chunk = None
+    async for chunk in stream.body_iterator:
+        final_chunk = chunk
+    return json.loads(final_chunk)
 
 
 def transform_raw_chat_history_for_detail_action_chat(
@@ -163,8 +172,8 @@ def transform_raw_chat_history_for_detail_action_chat(
     ] + [{"role": msg["role"], "content": msg["content"]} for msg in reflection_msgs]
 
 
-@router.post("/ai/detail_action_chat", response_model=AIChatResponse)
-async def detail_action_chat(request: DetailActionChatRequest):
+@router.post("/ai/detail_action_chat_stream", response_model=AIChatResponse)
+async def detail_action_chat_stream(request: DetailActionChatRequest):
     class Output(BaseModel):
         chain_of_thought: str = Field(
             description="Reflect on the chat so far to clearly identify what aspects have been covered already and what should be covered in the next question"
@@ -297,6 +306,15 @@ After all questions (default 7–10), end with a motivational summary (e.g. “T
         stream_response(),
         media_type="application/x-ndjson",
     )
+
+
+@router.post("/ai/detail_action_chat", response_model=AIChatResponse)
+async def detail_action_chat(request: DetailActionChatRequest):
+    stream = await detail_action_chat_stream(request)
+    final_chunk = None
+    async for chunk in stream.body_iterator:
+        final_chunk = chunk
+    return json.loads(final_chunk)
 
 
 def transform_chat_history_to_prompt(chat_history: List[Dict]) -> str:
