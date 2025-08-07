@@ -187,7 +187,7 @@ async def add_chat_messages_for_action(
 @app.get("/users/{email}/username")
 async def get_username(email: str) -> str:
     try:
-        user_profile = await get_user_profile(email)
+        user_profile = get_user_profile(email)
         return user_profile["current_user"]["username"]
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
