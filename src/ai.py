@@ -19,6 +19,7 @@ from models import (
     BasicActionChatRequest,
     DetailActionChatRequest,
     AIUpdateActionMetadataResponse,
+    AddChatMessageRequest,
 )
 from settings import settings
 from utils import extract_skill_from_action_type
@@ -36,7 +37,7 @@ router = APIRouter()
 
 
 async def get_basic_action_response_from_chat_history(
-    chat_history: List[ChatHistoryMessage],
+    chat_history: List[ChatHistoryMessage], model: str = "gpt-4.1-2025-04-14"
 ):
     class Output(BaseModel):
         chain_of_thought: str = Field(
@@ -50,7 +51,7 @@ async def get_basic_action_response_from_chat_history(
     ):
         return await stream_llm_responses_with_instructor(
             api_key=settings.openai_api_key,
-            model="gpt-4.1-2025-04-14",
+            model=model,
             response_model=Output,
             max_output_tokens=8096,
             temperature=0.1,
@@ -99,7 +100,9 @@ Once you have marked the conversation as done, the accompanying feedback should 
 
 
 @router.post("/ai/basic_action_chat_stream", response_model=AIChatResponse)
-async def basic_action_chat_stream(request: BasicActionChatRequest):
+async def basic_action_chat_stream(
+    request: BasicActionChatRequest, model: str = "gpt-4.1-2025-04-14"
+):
     chat_history = await get_action_chat_history(request.action_uuid)
 
     chat_history = [
@@ -118,7 +121,7 @@ async def basic_action_chat_stream(request: BasicActionChatRequest):
     ]
 
     async def stream_response():
-        stream = await get_basic_action_response_from_chat_history(chat_history)
+        stream = await get_basic_action_response_from_chat_history(chat_history, model)
         async for chunk in stream:
             content = json.dumps(chunk.model_dump()) + "\n"
             yield content
@@ -131,7 +134,7 @@ async def basic_action_chat_stream(request: BasicActionChatRequest):
 
 @router.post("/ai/basic_action_chat", response_model=AIChatResponse)
 async def basic_action_chat(request: BasicActionChatRequest):
-    stream = await basic_action_chat_stream(request)
+    stream = await basic_action_chat_stream(request, model="gpt-4.1-mini-2025-04-14")
     final_chunk = None
     async for chunk in stream.body_iterator:
         final_chunk = chunk
@@ -140,16 +143,16 @@ async def basic_action_chat(request: BasicActionChatRequest):
     await add_messages_to_action_history(
         request.action_uuid,
         [
-            {
-                "role": "user",
-                "content": request.last_user_message,
-                "response_type": "text",
-            },
-            {
-                "role": "assistant",
-                "content": response["response"],
-                "response_type": "text",
-            },
+            AddChatMessageRequest(
+                role="user",
+                content=request.last_user_message,
+                response_type="text",
+            ),
+            AddChatMessageRequest(
+                role="assistant",
+                content=json.dumps(response),
+                response_type="text",
+            ),
         ],
     )
 
@@ -192,7 +195,9 @@ def transform_raw_chat_history_for_detail_action_chat(
 
 
 @router.post("/ai/detail_action_chat_stream", response_model=AIChatResponse)
-async def detail_action_chat_stream(request: DetailActionChatRequest):
+async def detail_action_chat_stream(
+    request: DetailActionChatRequest, model: str = "gpt-4.1-2025-04-14"
+):
     class Output(BaseModel):
         chain_of_thought: str = Field(
             description="Reflect on the chat so far to clearly identify what aspects have been covered already and what should be covered in the next question"
@@ -227,7 +232,7 @@ async def detail_action_chat_stream(request: DetailActionChatRequest):
         ):
             stream = await stream_llm_responses_with_instructor(
                 api_key=settings.openai_api_key,
-                model="gpt-4.1-2025-04-14",
+                model=model,
                 response_model=Output,
                 max_output_tokens=8096,
                 temperature=0.1,
@@ -328,7 +333,7 @@ After all questions (default 7–10), end with a motivational summary (e.g. “T
 
 @router.post("/ai/detail_action_chat", response_model=AIChatResponse)
 async def detail_action_chat(request: DetailActionChatRequest):
-    stream = await detail_action_chat_stream(request)
+    stream = await detail_action_chat_stream(request, model="gpt-4.1-mini-2025-04-14")
     final_chunk = None
     async for chunk in stream.body_iterator:
         final_chunk = chunk
@@ -337,16 +342,16 @@ async def detail_action_chat(request: DetailActionChatRequest):
     await add_messages_to_action_history(
         request.action_uuid,
         [
-            {
-                "role": "user",
-                "content": request.last_user_message,
-                "response_type": "text",
-            },
-            {
-                "role": "assistant",
-                "content": response["response"],
-                "response_type": "text",
-            },
+            AddChatMessageRequest(
+                role="user",
+                content=request.last_user_message,
+                response_type="text",
+            ),
+            AddChatMessageRequest(
+                role="assistant",
+                content=json.dumps(response),
+                response_type="text",
+            ),
         ],
     )
 
