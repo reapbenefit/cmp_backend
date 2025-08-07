@@ -28,6 +28,7 @@ from db import (
     get_action_from_uuid,
     update_action_for_user,
     get_action_chat_history,
+    add_messages_to_action_history,
 )
 from openinference.instrumentation import using_attributes
 
@@ -134,7 +135,25 @@ async def basic_action_chat(request: BasicActionChatRequest):
     final_chunk = None
     async for chunk in stream.body_iterator:
         final_chunk = chunk
-    return json.loads(final_chunk)
+    response = json.loads(final_chunk)
+
+    await add_messages_to_action_history(
+        request.action_uuid,
+        [
+            {
+                "role": "user",
+                "content": request.last_user_message,
+                "response_type": "text",
+            },
+            {
+                "role": "assistant",
+                "content": response["response"],
+                "response_type": "text",
+            },
+        ],
+    )
+
+    return response
 
 
 def transform_raw_chat_history_for_detail_action_chat(
@@ -313,7 +332,25 @@ async def detail_action_chat(request: DetailActionChatRequest):
     final_chunk = None
     async for chunk in stream.body_iterator:
         final_chunk = chunk
-    return json.loads(final_chunk)
+    response = json.loads(final_chunk)
+
+    await add_messages_to_action_history(
+        request.action_uuid,
+        [
+            {
+                "role": "user",
+                "content": request.last_user_message,
+                "response_type": "text",
+            },
+            {
+                "role": "assistant",
+                "content": response["response"],
+                "response_type": "text",
+            },
+        ],
+    )
+
+    return response
 
 
 def transform_chat_history_to_prompt(chat_history: List[Dict]) -> str:
