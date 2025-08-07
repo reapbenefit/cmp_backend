@@ -8,7 +8,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: Production
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -72,7 +72,14 @@ jobs:
           export FRAPPE_BACKEND_CLIENT_SECRET="${{ secrets.FRAPPE_BACKEND_CLIENT_SECRET }}"
           export DATABASE_URL="${{ secrets.DATABASE_URL }}"
           
-          docker-compose -f docker-compose.prod.yml down && docker-compose -f docker-compose.prod.yml pull && docker-compose -f docker-compose.prod.yml up -d
+          # Stop and remove existing containers
+          docker-compose -f docker-compose.prod.yml down
+          
+          # Pull the latest image (Docker will use layers from cache when possible)
+          docker-compose -f docker-compose.prod.yml pull
+          
+          # Start the containers
+          docker-compose -f docker-compose.prod.yml up -d
 
           sleep 10
 

@@ -11,12 +11,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-        
-    - name: Verify latest commit
-      run: |
-        echo "Current commit: $(git rev-parse HEAD)"
-        echo "Current commit message: $(git log -1 --pretty=format:'%s')"
-        echo "Branch: $(git branch --show-current)"
       
     - name: Setup Docker Buildx
       uses: docker/setup-buildx-action@v3
