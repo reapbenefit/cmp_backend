@@ -11,6 +11,9 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 1
         
     - name: Verify latest commit
       run: |
@@ -34,7 +37,7 @@ jobs:
         push: true
         tags: ${{ secrets.DOCKER_USERNAME }}/rb-cmp-backend:dev
         build-args: |
-          CACHEBUST=${{ github.sha }}-${{ github.run_number }}
+          CACHEBUST=${{ github.sha }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
         
@@ -77,7 +80,14 @@ jobs:
           export FRAPPE_BACKEND_CLIENT_SECRET="${{ secrets.FRAPPE_BACKEND_CLIENT_SECRET }}"
           export DATABASE_URL="${{ secrets.DATABASE_URL }}"
           
-          docker-compose -f docker-compose.dev.yml down && docker-compose -f docker-compose.dev.yml pull && docker-compose -f docker-compose.dev.yml up -d
+          # Stop and remove existing containers
+          docker-compose -f docker-compose.dev.yml down
+          
+          # Pull the latest image (Docker will use layers from cache when possible)
+          docker-compose -f docker-compose.dev.yml pull
+          
+          # Start the containers
+          docker-compose -f docker-compose.dev.yml up -d
 
           sleep 10
 
