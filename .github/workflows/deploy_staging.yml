@@ -27,6 +27,8 @@ jobs:
         context: .
         push: true
         tags: ${{ secrets.DOCKER_USERNAME }}/rb-cmp-backend:dev
+        build-args: |
+          CACHEBUST=${{ github.sha }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
         

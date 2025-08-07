@@ -104,6 +104,7 @@ async def get_portfolio(username: str) -> Portfolio:
     try:
         return await get_user_portfolio(username=username)
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=404, detail=str(e))
 
 
@@ -112,6 +113,7 @@ async def create_community(request: CreateCommunityRequest) -> UserCommunity:
     try:
         return await create_community_for_user(request)
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -122,6 +124,7 @@ async def update_user_profile(
     try:
         return await update_user_profile_for_user(username, request)
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -163,6 +166,7 @@ async def get_chat_history_for_action(action_uuid: str) -> List[ChatMessage]:
     try:
         return await get_action_chat_history(action_uuid)
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -171,6 +175,7 @@ async def get_all_chats_for_user(user_id: int) -> List[ChatSession]:
     try:
         return await get_all_chat_sessions_for_user(user_id)
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -181,6 +186,7 @@ async def add_chat_messages_for_action(
     try:
         return await add_messages_to_action_history(action_uuid, messages)
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -190,6 +196,7 @@ async def get_username(email: str) -> str:
         user_profile = get_user_profile(email)
         return user_profile["current_user"]["username"]
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 
