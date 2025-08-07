@@ -11,9 +11,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        ref: main
-        fetch-depth: 1
         
     - name: Verify latest commit
       run: |
