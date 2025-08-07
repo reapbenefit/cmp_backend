@@ -1,9 +1,6 @@
 # Use Python 3.13 slim image as base
 FROM python:3.13-slim
 
-# Add build argument to bust cache when code changes
-ARG CACHEBUST=1
-
 # Set working directory
 WORKDIR /app
 
@@ -21,6 +18,9 @@ COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Add build argument to bust cache when code changes (placed after requirements)
+ARG CACHEBUST=1
 
 # Copy source code (this layer will be invalidated when CACHEBUST changes)
 COPY src/ ./src/
