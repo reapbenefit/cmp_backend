@@ -34,7 +34,7 @@ from db import (
     get_all_chat_sessions_for_user,
     get_user_id_by_email,
 )
-from frappe import login_user
+from frappe import login_user, get_user_profile
 from llm import stream_llm_with_instructor
 
 app = FastAPI()
@@ -180,6 +180,15 @@ async def add_chat_messages_for_action(
 ):
     try:
         return await add_messages_to_action_history(action_uuid, messages)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/users/{email}/username")
+async def get_username(email: str) -> str:
+    try:
+        user_profile = await get_user_profile(email)
+        return user_profile["current_user"]["username"]
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
