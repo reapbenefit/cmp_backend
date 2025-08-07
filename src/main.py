@@ -194,8 +194,7 @@ async def add_chat_messages_for_action(
 async def get_username(email: str) -> str:
     try:
         user_profile = get_user_profile(email)
-        username = user_profile["current_user"]["username"]
-        return username
+        return user_profile["current_user"]["username"]
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
