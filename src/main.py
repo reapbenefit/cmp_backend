@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from models import (
     Portfolio,
     LoginRequest,
+    LoginWithSSORequest,
     SignupUserRequest,
     CreateCommunityRequest,
     UserCommunity,
@@ -34,7 +35,7 @@ from db import (
     get_all_chat_sessions_for_user,
     get_user_id_by_email,
 )
-from frappe import login_user, get_user_profile
+from frappe import login_user, login_user_with_sso, get_user_profile_from_token
 from llm import stream_llm_with_instructor
 
 app = FastAPI()
@@ -87,6 +88,48 @@ async def login(request: LoginRequest):
         "id": user_id,
         "email": request.email,
         "sid": cookies["sid"],
+    }
+
+
+@app.post("/login_with_sso")
+async def login_with_sso(request: LoginWithSSORequest):
+    response = login_user_with_sso(request.code)
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    response = response.json()
+
+    access_token = response["access_token"]
+
+    user_profile = get_user_profile_from_token(access_token)
+
+    user_id = await get_user_id_by_email(user_profile["current_user"]["email"])
+
+    if user_id is None:
+        name_parts = user_profile["current_user"]["full_name"].split(" ")
+        first_name = name_parts[0]
+        last_name = ""
+
+        if len(name_parts) > 1:
+            last_name = name_parts[-1]
+
+        new_user = await create_user(
+            {
+                "email": user_profile["current_user"]["email"],
+                "first_name": first_name,
+                "last_name": last_name,
+                "username": user_profile["current_user"]["username"],
+            }
+        )
+        user_id = new_user["id"]
+
+    return {
+        "name": user_profile["current_user"]["full_name"],
+        "id": user_id,
+        "email": user_profile["current_user"]["email"],
+        "sid": access_token,
+        "username": user_profile["current_user"]["username"],
     }
 
 
@@ -190,10 +233,10 @@ async def add_chat_messages_for_action(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/users/{email}/username")
-async def get_username(email: str) -> str:
+@app.get("/users/{token}/username")
+async def get_username(token: str) -> str:
     try:
-        user_profile = get_user_profile(email)
+        user_profile = get_user_profile_from_token(token)
         return user_profile["current_user"]["username"]
     except Exception as e:
         traceback.print_exc()

@@ -225,6 +225,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class LoginWithSSORequest(BaseModel):
+    code: str
+
+
 class BaseUser(BaseModel):
     first_name: str
     last_name: str

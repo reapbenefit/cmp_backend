@@ -56,17 +56,26 @@ def login_user(email: str, password: str):
     return requests.request("POST", url, headers=headers, data=payload)
 
 
-def get_user_profile(email: str):
+def login_user_with_sso(code: str):
+    url = f"{settings.frappe_backend_base_url}/method/frappe.integrations.oauth2.get_token"
+
+    payload = f"grant_type=authorization_code&code={code}&redirect_uri={settings.frappe_sso_redirect_uri}&client_id={settings.frappe_sso_client_id}&client_secret={settings.frappe_sso_client_secret}"
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
+
+    return requests.request("POST", url, headers=headers, data=payload)
+
+
+def get_user_profile_from_token(token: str):
     url = f"{settings.frappe_backend_base_url}/method/solve_ninja.api.profile.get_user_profile"
 
-    payload = json.dumps({"username": email})
-
     headers = {
-        "Authorization": f"token {settings.frappe_backend_client_id}:{settings.frappe_backend_client_secret}",
+        "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
 
-    response = requests.request("POST", url, headers=headers, data=payload)
+    response = requests.request("POST", url, headers=headers)
 
     if response.status_code != 200:
         raise HTTPException(status_code=404, detail="User not found")
