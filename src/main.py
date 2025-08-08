@@ -133,15 +133,6 @@ async def login_with_sso(request: LoginWithSSORequest):
     }
 
 
-# @app.post("/signup")
-# async def signup(request: SignupUserRequest):
-#     try:
-#         new_user = await create_user(request)
-#         return new_user
-#     except Exception as e:
-#         raise HTTPException(status_code=400, detail=str(e))
-
-
 @app.get("/portfolio/{username}")
 async def get_portfolio(username: str) -> Portfolio:
     try:
