@@ -70,6 +70,9 @@ jobs:
           export FRAPPE_BACKEND_CLIENT_ID="${{ secrets.FRAPPE_BACKEND_CLIENT_ID }}"
           export FRAPPE_BACKEND_CLIENT_SECRET="${{ secrets.FRAPPE_BACKEND_CLIENT_SECRET }}"
           export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+          export FRAPPE_SSO_CLIENT_ID="${{ secrets.FRAPPE_SSO_CLIENT_ID }}"
+          export FRAPPE_SSO_CLIENT_SECRET="${{ secrets.FRAPPE_SSO_CLIENT_SECRET }}"
+          export FRAPPE_SSO_REDIRECT_URI="${{ secrets.FRAPPE_SSO_REDIRECT_URI }}"
           
           # Stop and remove existing containers
           docker-compose -f docker-compose.dev.yml down

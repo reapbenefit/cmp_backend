@@ -15,6 +15,9 @@ services:
       - FRAPPE_BACKEND_CLIENT_ID=${FRAPPE_BACKEND_CLIENT_ID}
       - FRAPPE_BACKEND_CLIENT_SECRET=${FRAPPE_BACKEND_CLIENT_SECRET}
       - DATABASE_URL=${DATABASE_URL}
+      - FRAPPE_SSO_CLIENT_ID=${FRAPPE_SSO_CLIENT_ID}
+      - FRAPPE_SSO_CLIENT_SECRET=${FRAPPE_SSO_CLIENT_SECRET}
+      - FRAPPE_SSO_REDIRECT_URI=${FRAPPE_SSO_REDIRECT_URI}
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
