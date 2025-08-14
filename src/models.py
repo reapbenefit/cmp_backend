@@ -2,7 +2,7 @@ from calendar import c
 from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 
 class ChatRole(str, Enum):
@@ -377,3 +377,8 @@ class AIChatResponse(BaseModel):
 class CreateActionResponse(BaseModel):
     ai_response: AIChatResponse
     action: Action
+
+
+class UpdateActionHoursInvestedRequest(BaseModel):
+    time_invested_value: float
+    time_invested_unit: Literal["minutes", "hours"]

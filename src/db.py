@@ -475,7 +475,7 @@ async def get_action_for_user(action_id: int):
         cursor = await conn.cursor()
 
         result = await cursor.execute(
-            f"SELECT a.id, a.uuid, a.title, a.description, a.status, a.is_verified, a.created_at, a.category, a.type, a.user_id, u.email FROM {actions_table_name} a INNER JOIN {users_table_name} u ON a.user_id = u.id WHERE a.id = ?",
+            f"SELECT a.id, a.uuid, a.title, a.description, a.status, a.is_verified, a.created_at, a.category, a.type, a.user_id, u.email, a.time_invested_value, a.time_invested_unit FROM {actions_table_name} a INNER JOIN {users_table_name} u ON a.user_id = u.id WHERE a.id = ?",
             (action_id,),
         )
 
@@ -521,6 +521,8 @@ async def get_action_for_user(action_id: int):
                 "email": action[10],
             },
             "skills": skills,
+            "time_invested_value": action[11],
+            "time_invested_unit": action[12],
         }
 
 
@@ -734,6 +736,20 @@ async def update_action_for_user(
         await conn.commit()
 
         return await get_action_for_user(action_id)
+
+
+async def update_action_hours_invested(
+    action_uuid: str, time_invested_value: float, time_invested_unit: str
+):
+    async with get_new_db_connection() as conn:
+        cursor = await conn.cursor()
+
+        await cursor.execute(
+            f"UPDATE {actions_table_name} SET time_invested_value = ?, time_invested_unit = ? WHERE uuid = ?",
+            (time_invested_value, time_invested_unit, action_uuid),
+        )
+
+        await conn.commit()
 
 
 async def has_skills():

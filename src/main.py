@@ -1,5 +1,6 @@
 from typing import List
 import json
+import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRouter
@@ -18,6 +19,7 @@ from models import (
     ChatSession,
     AddChatMessageRequest,
     CreateActionResponse,
+    UpdateActionHoursInvestedRequest,
 )
 import traceback
 from settings import settings
@@ -34,9 +36,14 @@ from db import (
     add_messages_to_action_history,
     get_all_chat_sessions_for_user,
     get_user_id_by_email,
+    update_action_hours_invested,
 )
-from frappe import login_user, login_user_with_sso, get_user_profile_from_token
-from llm import stream_llm_with_instructor
+from frappe import (
+    login_user,
+    login_user_with_sso,
+    get_user_profile_from_token,
+    update_action_hours_invested_on_frappe,
+)
 
 app = FastAPI()
 
@@ -190,6 +197,25 @@ async def create_action(request: CreateActionRequest) -> CreateActionResponse:
             "ai_response": ai_response,
             "action": action,
         }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.put("/actions/{action_uuid}/hours_invested")
+async def update_action_time_invested(
+    action_uuid: str, request: UpdateActionHoursInvestedRequest
+):
+    try:
+        await update_action_hours_invested(
+            action_uuid, request.time_invested_value, request.time_invested_unit
+        )
+        hours_invested_value = request.time_invested_value
+        if request.time_invested_unit == "minutes":
+            hours_invested_value = np.round(request.time_invested_value / 60, 1)
+
+        update_action_hours_invested_on_frappe(action_uuid, hours_invested_value)
+        return {"success": True}
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))

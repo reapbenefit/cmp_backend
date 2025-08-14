@@ -126,6 +126,31 @@ async def create_or_update_action_on_frappe(
         )
 
 
+def update_action_hours_invested_on_frappe(
+    action_uuid: str,
+    hours_invested_value: int,
+):
+    url = f"{settings.frappe_backend_base_url}/method/solve_ninja.api.events.create_events"
+
+    payload = json.dumps(
+        {
+            "event_id": action_uuid,
+            "hours_invested": hours_invested_value,
+        }
+    )
+    headers = {
+        "Authorization": f"token {settings.frappe_backend_client_id}:{settings.frappe_backend_client_secret}",
+        "Content-Type": "application/json",
+    }
+
+    response = requests.request("PUT", url, headers=headers, data=payload)
+
+    if response.status_code != 200:
+        raise Exception(
+            f"Failed to update action hours invested on frappe: {response.text} for action {action_uuid}"
+        )
+
+
 async def event_exists(action_uuid: str):
     async with get_db_connection() as conn:
         row = await conn.fetchrow(
