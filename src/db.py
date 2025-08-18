@@ -197,9 +197,11 @@ async def init_db():
         cursor = await conn.cursor()
 
         try:
+            print("Creating tables...")
             # Check if any table is missing and create tables if needed
             await create_tables(cursor)
             await conn.commit()
+            print("Tables created.")
 
         except Exception as exception:
             # delete db
@@ -550,11 +552,18 @@ async def create_action_for_user(
 
         action_uuid = str(uuid.uuid4())
 
-        await cursor.execute(
-            f"SELECT id FROM {users_table_name} WHERE email = ?",
-            (action_user_email,),
-        )
-        action_user_id = (await cursor.fetchone())[0]
+        # Check if user exists, create if not
+        action_user_id = await get_user_id_by_email(action_user_email)
+        
+        if action_user_id is None:
+            # Create user with email-based fallback data (similar to login process)
+            new_user = await create_user({
+                "email": action_user_email,
+                "first_name": "",
+                "last_name": "",
+                "username": action_user_email,
+            })
+            action_user_id = new_user["id"]
 
         await cursor.execute(
             f"INSERT INTO {actions_table_name} (user_id, title, status, uuid) VALUES (?, ?, ?, ?)",
