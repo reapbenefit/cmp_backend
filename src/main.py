@@ -28,7 +28,6 @@ from langchain_core.output_parsers import PydanticOutputParser
 from ai import router, get_basic_action_response_from_chat_history
 from db import (
     create_user,
-    get_user_portfolio,
     create_community_for_user,
     update_user_profile_for_user,
     create_action_for_user,
@@ -43,6 +42,7 @@ from frappe import (
     login_user_with_sso,
     get_user_profile_from_token,
     update_action_hours_invested_on_frappe,
+    get_user_portfolio,
 )
 
 app = FastAPI()
@@ -143,7 +143,7 @@ async def login_with_sso(request: LoginWithSSORequest):
 @app.get("/portfolio/{username}")
 async def get_portfolio(username: str) -> Portfolio:
     try:
-        return await get_user_portfolio(username=username)
+        return get_user_portfolio(username=username)
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=404, detail=str(e))
