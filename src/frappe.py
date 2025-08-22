@@ -83,7 +83,6 @@ def get_user_profile_from_token(token: str):
     return response.json()["message"]
 
 
-
 def get_user_profile_from_username(username: str):
     url = f"{settings.frappe_backend_base_url}/method/solve_ninja.api.profile.get_user_profile"
 
@@ -105,12 +104,12 @@ def get_user_profile_from_username(username: str):
 def get_user_portfolio(username: str):
     """Get the portfolio of a user from Frappe backend in the same format as the database version."""
     frappe_data = get_user_profile_from_username(username)
-    
+
     current_user = frappe_data.get("current_user", {})
     actions_data = frappe_data.get("actions", [])
     skills_data = frappe_data.get("skills", [])
     skill_assignment_log = frappe_data.get("skill_assignment_log", [])
-    
+
     # Transform user data to match database format
     user = {
         "first_name": current_user.get("first_name") or "",
@@ -122,23 +121,25 @@ def get_user_portfolio(username: str):
         "location_state": current_user.get("state", ""),
         "location_city": current_user.get("city", ""),
         "location_country": current_user.get("location", ""),
-        "highlight": current_user.get("highlighted_action", {}).get("description", "")
+        "highlight": current_user.get("highlighted_action", {}).get("description", ""),
     }
-    
+
     # Create a mapping of skill names to skill data for easy lookup
     skill_name_to_data = {}
     for i, skill_data in enumerate(skills_data):
-        skill_name = skill_data['name']
+        skill_name = skill_data["name"]
         skill_name_to_data[skill_name] = {
             "id": i + 1,
             "name": skill_name.replace(" ", "_").lower(),
             "label": skill_name,
-            "history": []
+            "history": [],
         }
-    
+
     # Create a mapping of action event_id to action title for skill history
-    action_id_to_title = {action.get("event_id", ""): action.get("title", "") for action in actions_data}
-    
+    action_id_to_title = {
+        action.get("event_id", ""): action.get("title", "") for action in actions_data
+    }
+
     # First, deduplicate skill assignment log entries
     # Group by (badge, reference_name) combo and select the best entry
     deduplicated_log = {}
@@ -146,9 +147,9 @@ def get_user_portfolio(username: str):
         skill_name = log_entry.get("badge", "")
         action_event_id = log_entry.get("reference_name", "")
         reason = log_entry.get("reason", "")
-        
+
         key = (skill_name, action_event_id)
-        
+
         if key not in deduplicated_log:
             deduplicated_log[key] = log_entry
         else:
@@ -157,17 +158,19 @@ def get_user_portfolio(username: str):
             if not existing_reason and reason:
                 deduplicated_log[key] = log_entry
             # If both have reasons or both are empty, keep the existing one
-    
+
     # Process the deduplicated skill assignment log to build skill history and action-skill relationships
     action_skills_map = {}  # Maps action event_id to list of skills
-    action_first_skill_creation = {}  # Maps action event_id to creation time of first skill
-    
+    action_first_skill_creation = (
+        {}
+    )  # Maps action event_id to creation time of first skill
+
     for log_entry in deduplicated_log.values():
         skill_name = log_entry.get("badge", "")
         action_event_id = log_entry.get("reference_name", "")
         reason = log_entry.get("reason", "")
         creation_time = log_entry.get("creation", "")
-        
+
         # Track the first skill creation time for each action
         if action_event_id not in action_first_skill_creation:
             action_first_skill_creation[action_event_id] = creation_time
@@ -175,36 +178,39 @@ def get_user_portfolio(username: str):
             # Keep the earliest creation time
             if creation_time < action_first_skill_creation[action_event_id]:
                 action_first_skill_creation[action_event_id] = creation_time
-        
+
         # Add to skill history if skill exists
         if skill_name in skill_name_to_data:
             action_title = action_id_to_title.get(action_event_id, "")
-            skill_name_to_data[skill_name]["history"].append({
-                "action_title": action_title,
-                "summary": reason
-            })
-        
+            skill_name_to_data[skill_name]["history"].append(
+                {"action_title": action_title, "summary": reason}
+            )
+
         # Build action-skill mapping
         if action_event_id not in action_skills_map:
             action_skills_map[action_event_id] = []
-        
+
         if skill_name in skill_name_to_data:
             skill_info = skill_name_to_data[skill_name]
-            action_skills_map[action_event_id].append({
-                "id": skill_info["id"],
-                "name": skill_info["name"],
-                "label": skill_info["label"],
-                "summary": reason
-            })
-    
+            action_skills_map[action_event_id].append(
+                {
+                    "id": skill_info["id"],
+                    "name": skill_info["name"],
+                    "label": skill_info["label"],
+                    "relevance": reason,
+                }
+            )
+
     # Transform actions data with populated skills
     actions = []
     for action_data in actions_data:
         event_id = action_data.get("event_id", "")
-        
+
         # Use the first skill creation time as the action's created_at, fallback to action creation time
-        created_at = action_first_skill_creation.get(event_id, action_data.get("creation", ""))
-        
+        created_at = action_first_skill_creation.get(
+            event_id, action_data.get("creation", "")
+        )
+
         # Transform action to match database format
         action = {
             "uuid": event_id,
@@ -215,14 +221,16 @@ def get_user_portfolio(username: str):
             "category": action_data.get("category", ""),
             "type": action_data.get("type", ""),
             "created_at": created_at,
-            "skills": action_skills_map.get(event_id, [])  # Populate skills from skill assignment log
+            "skills": action_skills_map.get(
+                event_id, []
+            ),  # Populate skills from skill assignment log
         }
-        
+
         actions.append(action)
-    
+
     # Convert skill data to list format
     skills = list(skill_name_to_data.values())
-        
+
     return {
         "first_name": user["first_name"],
         "last_name": user["last_name"],
