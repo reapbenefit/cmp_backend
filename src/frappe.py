@@ -83,6 +83,163 @@ def get_user_profile_from_token(token: str):
     return response.json()["message"]
 
 
+
+def get_user_profile_from_username(username: str):
+    url = f"{settings.frappe_backend_base_url}/method/solve_ninja.api.profile.get_user_profile"
+
+    headers = {
+        "Authorization": f"token {settings.frappe_backend_client_id}:{settings.frappe_backend_client_secret}",
+        "Content-Type": "application/json",
+    }
+
+    payload = json.dumps({"username": username})
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return response.json()["message"]
+
+
+def get_user_portfolio(username: str):
+    """Get the portfolio of a user from Frappe backend in the same format as the database version."""
+    frappe_data = get_user_profile_from_username(username)
+    
+    current_user = frappe_data.get("current_user", {})
+    actions_data = frappe_data.get("actions", [])
+    skills_data = frappe_data.get("skills", [])
+    skill_assignment_log = frappe_data.get("skill_assignment_log", [])
+    
+    # Transform user data to match database format
+    user = {
+        "first_name": current_user.get("first_name") or "",
+        "last_name": current_user.get("last_name") or "",
+        "username": current_user.get("username") or "",
+        "email": current_user.get("email", ""),
+        "is_verified": current_user.get("verified_by") is not None,
+        "bio": current_user.get("bio", ""),
+        "location_state": current_user.get("state", ""),
+        "location_city": current_user.get("city", ""),
+        "location_country": current_user.get("location", ""),
+        "highlight": current_user.get("highlighted_action", {}).get("description", "")
+    }
+    
+    # Create a mapping of skill names to skill data for easy lookup
+    skill_name_to_data = {}
+    for i, skill_data in enumerate(skills_data):
+        skill_name = skill_data['name']
+        skill_name_to_data[skill_name] = {
+            "id": i + 1,
+            "name": skill_name.replace(" ", "_").lower(),
+            "label": skill_name,
+            "history": []
+        }
+    
+    # Create a mapping of action event_id to action title for skill history
+    action_id_to_title = {action.get("event_id", ""): action.get("title", "") for action in actions_data}
+    
+    # First, deduplicate skill assignment log entries
+    # Group by (badge, reference_name) combo and select the best entry
+    deduplicated_log = {}
+    for log_entry in skill_assignment_log:
+        skill_name = log_entry.get("badge", "")
+        action_event_id = log_entry.get("reference_name", "")
+        reason = log_entry.get("reason", "")
+        
+        key = (skill_name, action_event_id)
+        
+        if key not in deduplicated_log:
+            deduplicated_log[key] = log_entry
+        else:
+            # Prefer entry with non-empty reason
+            existing_reason = deduplicated_log[key].get("reason", "")
+            if not existing_reason and reason:
+                deduplicated_log[key] = log_entry
+            # If both have reasons or both are empty, keep the existing one
+    
+    # Process the deduplicated skill assignment log to build skill history and action-skill relationships
+    action_skills_map = {}  # Maps action event_id to list of skills
+    action_first_skill_creation = {}  # Maps action event_id to creation time of first skill
+    
+    for log_entry in deduplicated_log.values():
+        skill_name = log_entry.get("badge", "")
+        action_event_id = log_entry.get("reference_name", "")
+        reason = log_entry.get("reason", "")
+        creation_time = log_entry.get("creation", "")
+        
+        # Track the first skill creation time for each action
+        if action_event_id not in action_first_skill_creation:
+            action_first_skill_creation[action_event_id] = creation_time
+        else:
+            # Keep the earliest creation time
+            if creation_time < action_first_skill_creation[action_event_id]:
+                action_first_skill_creation[action_event_id] = creation_time
+        
+        # Add to skill history if skill exists
+        if skill_name in skill_name_to_data:
+            action_title = action_id_to_title.get(action_event_id, "")
+            skill_name_to_data[skill_name]["history"].append({
+                "action_title": action_title,
+                "summary": reason
+            })
+        
+        # Build action-skill mapping
+        if action_event_id not in action_skills_map:
+            action_skills_map[action_event_id] = []
+        
+        if skill_name in skill_name_to_data:
+            skill_info = skill_name_to_data[skill_name]
+            action_skills_map[action_event_id].append({
+                "id": skill_info["id"],
+                "name": skill_info["name"],
+                "label": skill_info["label"],
+                "summary": reason
+            })
+    
+    # Transform actions data with populated skills
+    actions = []
+    for action_data in actions_data:
+        event_id = action_data.get("event_id", "")
+        
+        # Use the first skill creation time as the action's created_at, fallback to action creation time
+        created_at = action_first_skill_creation.get(event_id, action_data.get("creation", ""))
+        
+        # Transform action to match database format
+        action = {
+            "uuid": event_id,
+            "title": action_data.get("title", ""),
+            "description": action_data.get("description", ""),
+            "is_verified": action_data.get("verified_by") is not None,
+            "is_pinned": False,
+            "category": action_data.get("category", ""),
+            "type": action_data.get("type", ""),
+            "created_at": created_at,
+            "skills": action_skills_map.get(event_id, [])  # Populate skills from skill assignment log
+        }
+        
+        actions.append(action)
+    
+    # Convert skill data to list format
+    skills = list(skill_name_to_data.values())
+        
+    return {
+        "first_name": user["first_name"],
+        "last_name": user["last_name"],
+        "username": user["username"],
+        "email": user["email"],
+        "is_verified": user["is_verified"],
+        "bio": user["bio"],
+        "location_state": user["location_state"],
+        "location_city": user["location_city"],
+        "location_country": user["location_country"],
+        "highlight": user["highlight"],
+        "communities": [],  # Ignoring communities as requested
+        "actions": actions,
+        "skills": skills,
+    }
+
+
 async def create_or_update_action_on_frappe(
     action_id: int,
     action_uuid: str,

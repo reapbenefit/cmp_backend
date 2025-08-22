@@ -294,7 +294,7 @@ class Skill(BaseModel):
 
 class SkillHistoryEvent(BaseModel):
     action_title: str
-    summary: str
+    summary: str | None = None
 
 
 class SkillHistory(Skill):
@@ -306,8 +306,7 @@ class ActionSkill(Skill):
     response: Optional[str] = None
 
 
-class Action(BaseModel):
-    id: int
+class BaseAction(BaseModel):
     uuid: str
     title: str | None = None
     description: str | None = None
@@ -319,9 +318,12 @@ class Action(BaseModel):
     created_at: datetime
     skills: Optional[List[ActionSkill]] = None
     chat_history: Optional[List[ChatMessage]] = None
+    
+class Action(BaseAction):
+    id: int
 
 
-class Portfolio(User):
+class Portfolio(BaseUser):
     is_verified: bool
     bio: str | None = None
     location_state: str | None = None
@@ -329,7 +331,7 @@ class Portfolio(User):
     location_country: str | None = None
     highlight: str | None = None
     communities: List[UserCommunity] | None = None
-    actions: List[Action] | None = None
+    actions: List[BaseAction] | None = None
     skills: List[SkillHistory] | None = None
 
 
