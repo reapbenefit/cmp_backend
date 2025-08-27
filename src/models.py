@@ -309,6 +309,7 @@ class ActionSkill(Skill):
 class BaseAction(BaseModel):
     uuid: str
     title: str | None = None
+    hours_invested: float | None = None
     description: str | None = None
     status: Optional[str] = None
     is_verified: bool
@@ -318,7 +319,8 @@ class BaseAction(BaseModel):
     created_at: datetime
     skills: Optional[List[ActionSkill]] = None
     chat_history: Optional[List[ChatMessage]] = None
-    
+
+
 class Action(BaseAction):
     id: int
 
@@ -326,6 +328,7 @@ class Action(BaseAction):
 class Portfolio(BaseUser):
     is_verified: bool
     bio: str | None = None
+    image: str | None = None
     location_state: str | None = None
     location_city: str | None = None
     location_country: str | None = None
