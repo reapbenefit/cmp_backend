@@ -3,7 +3,7 @@ version: '3.8'
 services:
   cmp-backend-dev:
     container_name: cmp-backend-dev
-    image: reapbenefit/cmp-backend:dev
+    image: rbtechdocker1981/cmp-backend:dev
     ports:
       - '8002:8001'
     environment:
