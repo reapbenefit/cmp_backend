@@ -42,6 +42,9 @@ def extract_skill_from_action_type(action_type: ActionType) -> str:
     elif action_type == ActionType.CREATED_A_CAMPAIGN:
         skills.extend(["communication", "data_orientation", "community_collaboration"])
 
+    elif action_type == "Campaign":
+        skills.extend(["communication", "community_collaboration"])
+
     # Created solution
     elif action_type == ActionType.CREATED_SOLUTION:
         skills.extend(["critical_thinking", "problem_solving", "grit", "hands_on"])
@@ -110,6 +113,9 @@ def extract_skill_from_action_type(action_type: ActionType) -> str:
 
     # Reported issue
     elif action_type == ActionType.REPORTED_ISSUE:
+        skills.extend(["citizenship", "data_orientation"])
+
+    elif action_type == "Report":
         skills.extend(["citizenship", "data_orientation"])
 
     # Segregate waste at source

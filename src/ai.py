@@ -425,11 +425,11 @@ async def get_action_metadata_from_chat_history(chat_history: List[Dict]):
 async def get_skills_from_action(
     chat_history: List[Dict],
     action_type: ActionType,
-    action_category: ActionCategory,
-    action_subcategory: ActionSubCategory,
-    action_subtype: ActionType,
-    action_title: str,
-    action_description: str,
+    action_category: ActionCategory | None = None,
+    action_subcategory: ActionSubCategory | None = None,
+    action_subtype: ActionType | None = None,
+    action_title: str | None = None,
+    action_description: str | None = None,
 ):
     skills = extract_skill_from_action_type(action_type)
     skills = await get_skills_data_from_names(skills)

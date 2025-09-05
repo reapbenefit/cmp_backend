@@ -546,23 +546,27 @@ async def create_action_for_user(
     action_user_email: str,
     user_message: str,
     ai_message: str,
+    action_uuid: str | None = None,
 ):
     async with get_new_db_connection() as conn:
         cursor = await conn.cursor()
 
-        action_uuid = str(uuid.uuid4())
+        if not action_uuid:
+            action_uuid = str(uuid.uuid4())
 
         # Check if user exists, create if not
         action_user_id = await get_user_id_by_email(action_user_email)
-        
+
         if action_user_id is None:
             # Create user with email-based fallback data (similar to login process)
-            new_user = await create_user({
-                "email": action_user_email,
-                "first_name": "",
-                "last_name": "",
-                "username": action_user_email,
-            })
+            new_user = await create_user(
+                {
+                    "email": action_user_email,
+                    "first_name": "",
+                    "last_name": "",
+                    "username": action_user_email,
+                }
+            )
             action_user_id = new_user["id"]
 
         await cursor.execute(
@@ -577,19 +581,21 @@ async def create_action_for_user(
             (action_id, "user", user_message, "text"),
         )
 
-        await cursor.execute(
-            f"INSERT INTO {chat_history_table_name} (action_id, role, content, response_type) VALUES (?, ?, ?, ?)",
-            (action_id, "assistant", ai_message, "text"),
-        )
+        if ai_message:
+            await cursor.execute(
+                f"INSERT INTO {chat_history_table_name} (action_id, role, content, response_type) VALUES (?, ?, ?, ?)",
+                (action_id, "assistant", ai_message, "text"),
+            )
 
         await conn.commit()
 
         await add_message_to_chat_history(
             action_uuid, action_user_email, "user", user_message, "text"
         )
-        await add_message_to_chat_history(
-            action_uuid, action_user_email, "assistant", ai_message, "text"
-        )
+        if ai_message:
+            await add_message_to_chat_history(
+                action_uuid, action_user_email, "assistant", ai_message, "text"
+            )
 
         return await get_action_for_user(action_id)
 
