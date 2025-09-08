@@ -274,6 +274,7 @@ async def create_or_update_action_on_frappe(
             "sub_type": subtype,
             "user": action_details["user"]["email"],
             "description": action_details["description"],
+            "source": "ConversationalBot",
             "skills": {
                 skill["label"]: skill["summary"] for skill in action_details["skills"]
             },
