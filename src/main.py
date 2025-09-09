@@ -202,7 +202,10 @@ async def create_action(request: CreateActionRequest) -> CreateActionResponse:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.put("/actions/{action_uuid}/hours_invested")
+@app.api_route(
+    "/actions/{action_uuid}/hours_invested", 
+    methods=["POST", "PUT"]
+)
 async def update_action_time_invested(
     action_uuid: str, request: UpdateActionHoursInvestedRequest
 ):
