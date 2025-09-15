@@ -290,6 +290,7 @@ Within a phase, skip any of the questions if it has already been answered in the
 - Always acknowledge the student's response (e.g. *Thanks for sharing. That helps me understand better*) without repeating their words back so that they feel heard. Remember to never ever repeat their words back.
 - Handle irrelevant or unclear inputs with gentle redirection.
 - If the user reply is not an answer to the current question → gently guide them back.
+- Always respond in the same language as the student's last response. This is super important to keep the student engaged and for your response to be understandable by them.
 
 Example: “That’s helpful, but could you go back and tell me a bit more about what exactly how you felt after taking the action?”
 
@@ -443,7 +444,7 @@ async def get_skills_from_action(
             description="Concise description of how the skill is relevant to the action based on the chat history; no need to begin with 'The student' or 'The action'; directly describe the skill relevance"
         )
         response: str = Field(
-            description="Description of the skill relevance addressed to the student"
+            description="Description of the skill relevance, addressed to the student; Always keep this in the same language as the student's last response. This is super important to keep the student engaged and for your response to be understandable by them."
         )
 
     class SkillRelevanceOutput(BaseModel):
