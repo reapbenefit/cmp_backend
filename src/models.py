@@ -325,6 +325,14 @@ class Action(BaseAction):
     id: int
 
 
+class ExpertReview(BaseModel):
+    review_title: str
+    reviewer_name: str
+    designation: str
+    comment: str
+    organisation: str
+
+
 class Portfolio(BaseUser):
     is_verified: bool
     bio: str | None = None
@@ -336,6 +344,7 @@ class Portfolio(BaseUser):
     communities: List[UserCommunity] | None = None
     actions: List[BaseAction] | None = None
     skills: List[SkillHistory] | None = None
+    expert_reviews: List[ExpertReview] | None = None
 
 
 class UpdateActionRequest(BaseModel):

@@ -125,6 +125,13 @@ def get_user_portfolio(username: str):
         "highlight": current_user.get("highlighted_action", {}).get("description", ""),
     }
 
+    user["expert_reviews"] = frappe_data.get("reviews", [])
+
+    # Fix the typo in "desigantion" to "designation" in expert reviews
+    for review in user["expert_reviews"]:
+        if "desigantion" in review:
+            review["designation"] = review.pop("desigantion")
+
     # Create a mapping of skill names to skill data for easy lookup
     skill_name_to_data = {}
     for i, skill_data in enumerate(skills_data):
@@ -248,6 +255,7 @@ def get_user_portfolio(username: str):
         "communities": [],  # Ignoring communities as requested
         "actions": actions,
         "skills": skills,
+        "expert_reviews": user["expert_reviews"],
     }
 
 
