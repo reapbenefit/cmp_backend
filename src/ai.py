@@ -21,6 +21,7 @@ from models import (
     AIUpdateActionMetadataResponse,
     AddChatMessageRequest,
 )
+from datetime import datetime
 from settings import settings
 from utils import extract_skill_from_action_type
 from frappe import create_or_update_action_on_frappe, event_exists
@@ -32,8 +33,63 @@ from db import (
     add_messages_to_action_history,
 )
 from openinference.instrumentation import using_attributes
+from openai import AsyncOpenAI
+from frappe import get_user_portfolio
+
 
 router = APIRouter()
+
+
+@router.post("/ai/profile_summary/{username}", response_model=str)
+async def get_user_profile_summary(username: str) -> str:
+    user_portfolio = get_user_portfolio(username)
+
+    actions = []
+
+    total_hours_invested = 0
+
+    for action in user_portfolio["actions"]:
+        action_skills = [
+            {
+                "name": skill["name"],
+                "label": skill["label"],
+                "relevance": skill["relevance"],
+            }
+            for skill in action["skills"]
+        ]
+        actions.append(
+            {
+                "title": action["title"],
+                "description": action["description"],
+                "hours_invested": action["hours_invested"],
+                "category": action["category"],
+                "type": action["type"],
+                "skills": action_skills,
+            }
+        )
+        total_hours_invested += action["hours_invested"]
+
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
+
+    response = await client.responses.create(
+        model="gpt-4.1-2025-04-14",
+        prompt={
+            "id": "pmpt_68c96626c44c81958e995a0326f68bb90dc5eacf81bbd824",
+            "version": "3",
+            "variables": {
+                "total_hours_invested": str(total_hours_invested),
+                "num_actions": str(len(actions)),
+                "name": user_portfolio["first_name"],
+                "current_date": datetime.now().strftime("%Y-%m-%d"),
+                "actions": str(actions),
+            },
+        },
+        temperature=0.1,
+        max_output_tokens=2048,
+        store=True,
+    )
+
+    return response.output_text
 
 
 async def get_basic_action_response_from_chat_history(
