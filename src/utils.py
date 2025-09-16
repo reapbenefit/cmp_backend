@@ -14,6 +14,279 @@ skill_to_name = {
     "try_new_things": "Try New Things",
 }
 
+skill_to_microskills = {
+    "data_orientation": [
+        {
+            "level": "L1",
+            "microskill": "Using Data Tools",
+            "description": "Uses simple forms or tools to collect information.",
+        },
+        {
+            "level": "L2",
+            "microskill": "Reading Reports",
+            "description": "Understands and learns from existing data and reports.",
+        },
+        {
+            "level": "L3",
+            "microskill": "Analyzing Data",
+            "description": "Finds patterns or key points in information.",
+        },
+        {
+            "level": "L4",
+            "microskill": "Creating Data Tools",
+            "description": "Designs ways to collect new information.",
+        },
+        {
+            "level": "L5",
+            "microskill": "Insight & Strategy Design",
+            "description": "Uses insights from data to plan bigger actions.",
+        },
+    ],
+    "hands_on": [
+        {
+            "level": "L1",
+            "microskill": "Basic Tool Use",
+            "description": "Handles everyday tools safely and confidently.",
+        },
+        {
+            "level": "L2",
+            "microskill": "Simple Repairs",
+            "description": "Fixes or sets up basic items.",
+        },
+        {
+            "level": "L3",
+            "microskill": "Solution Installation",
+            "description": "Sets up and installs working solutions.",
+        },
+        {
+            "level": "L4",
+            "microskill": "Prototype Building",
+            "description": "Creates test versions of new ideas.",
+        },
+        {
+            "level": "L5",
+            "microskill": "Final Product Design",
+            "description": "Builds and completes fully working solutions.",
+        },
+    ],
+    "citizenship": [
+        {
+            "level": "L1",
+            "microskill": "Local Awareness",
+            "description": "Knows the area and notices community issues.",
+        },
+        {
+            "level": "L2",
+            "microskill": "Regular Reporting",
+            "description": "Reports and follows up on problems often.",
+        },
+        {
+            "level": "L3",
+            "microskill": "Joining Campaigns",
+            "description": "Participates actively in campaigns or projects.",
+        },
+        {
+            "level": "L4",
+            "microskill": "Leading Campaigns",
+            "description": "Starts and leads new community actions.",
+        },
+        {
+            "level": "L5",
+            "microskill": "Policy Engagement",
+            "description": "Works with decision-makers to create bigger change.",
+        },
+    ],
+    "problem_solving": [
+        {
+            "level": "L1",
+            "microskill": "Problem Awareness",
+            "description": "Notices and understands challenges.",
+        },
+        {
+            "level": "L2",
+            "microskill": "Research & Plan",
+            "description": "Finds information and makes a plan.",
+        },
+        {
+            "level": "L3",
+            "microskill": "Structured Execution",
+            "description": "Follows clear steps to solve problems.",
+        },
+        {
+            "level": "L4",
+            "microskill": "Trigger Mapping for Solution Design",
+            "description": "Understands stakeholders’ behaviour using trigger mapping and designs solutions accordingly.",
+        },
+        {
+            "level": "L5",
+            "microskill": "Prototyping & Iterating Solutions",
+            "description": "Builds test versions of solutions, gathers feedback, and improves them.",
+        },
+    ],
+    "communication": [
+        {
+            "level": "L1",
+            "microskill": "Clear Instructions",
+            "description": "Explains tasks simply and clearly.",
+        },
+        {
+            "level": "L2",
+            "microskill": "Group Facilitation",
+            "description": "Guides group discussions to make decisions.",
+        },
+        {
+            "level": "L3",
+            "microskill": "Compelling Storytelling",
+            "description": "Shares stories that inspire and connect.",
+        },
+        {
+            "level": "L4",
+            "microskill": "Interactive Facilitation",
+            "description": "Runs engaging activities for participation.",
+        },
+        {
+            "level": "L5",
+            "microskill": "Mobilizing People",
+            "description": "Inspires and organizes large groups to take action.",
+        },
+    ],
+    "critical_thinking": [
+        {
+            "level": "L1",
+            "microskill": "Identifying Issues",
+            "description": "Spots problems or gaps.",
+        },
+        {
+            "level": "L2",
+            "microskill": "Breaking Down Steps",
+            "description": "Splits problems into smaller actions.",
+        },
+        {
+            "level": "L3",
+            "microskill": "Contextual Thinking",
+            "description": "Adapts ideas to fit the situation.",
+        },
+        {
+            "level": "L4",
+            "microskill": "Questioning Assumptions",
+            "description": "Challenges ideas to make them stronger.",
+        },
+        {
+            "level": "L5",
+            "microskill": "Future Planning",
+            "description": "Thinks ahead and prepares for possible outcomes.",
+        },
+    ],
+    "community_collaboration": [
+        {
+            "level": "L1",
+            "microskill": "Knowing Who to Work With",
+            "description": "Identifies people or groups who can help.",
+        },
+        {
+            "level": "L2",
+            "microskill": "Stakeholder Outreach",
+            "description": "Connects with key people for the project.",
+        },
+        {
+            "level": "L3",
+            "microskill": "Co-Creation",
+            "description": "Works together to make solutions.",
+        },
+        {
+            "level": "L4",
+            "microskill": "Coordinating Campaigns",
+            "description": "Brings people together for joint action.",
+        },
+        {
+            "level": "L5",
+            "microskill": "Designing & Leading Campaigns",
+            "description": "Creates and guides large group projects.",
+        },
+    ],
+    "grit": [
+        {
+            "level": "L1",
+            "microskill": "Sustaining Interest",
+            "description": "Stays focused on an idea or cause.",
+        },
+        {
+            "level": "L2",
+            "microskill": "Committed Execution",
+            "description": "Works steadily even on routine tasks.",
+        },
+        {
+            "level": "L3",
+            "microskill": "Consistent Follow-up",
+            "description": "Checks in regularly to keep progress on track.",
+        },
+        {
+            "level": "L4",
+            "microskill": "Working with Multiple Stakeholders",
+            "description": "Engages different people to keep things moving.",
+        },
+        {
+            "level": "L5",
+            "microskill": "Persistent Leadership",
+            "description": "Leads and motivates others over the long term.",
+        },
+    ],
+    "applied_empathy": [
+        {
+            "level": "L1",
+            "microskill": "Respectful Conduct",
+            "description": "Treats everyone kindly and fairly.",
+        },
+        {
+            "level": "L2",
+            "microskill": "Emotional Awareness",
+            "description": "Thinks about how actions make others feel.",
+        },
+        {
+            "level": "L3",
+            "microskill": "Active Listening",
+            "description": "Makes sure everyone is heard and understood.",
+        },
+        {
+            "level": "L4",
+            "microskill": "Conflict Resolution",
+            "description": "Helps solve disagreements peacefully.",
+        },
+        {
+            "level": "L5",
+            "microskill": "Inclusive Decision-Making",
+            "description": "Ensures all voices are part of final choices.",
+        },
+    ],
+    "entrepreneurial": [
+        {
+            "level": "L1",
+            "microskill": "Idea Generation",
+            "description": "Comes up with creative ideas.",
+        },
+        {
+            "level": "L2",
+            "microskill": "Action Planning",
+            "description": "Makes step-by-step plans to act.",
+        },
+        {
+            "level": "L3",
+            "microskill": "Feedback Application",
+            "description": "Uses feedback to make things better.",
+        },
+        {
+            "level": "L4",
+            "microskill": "Team Coordination",
+            "description": "Organizes and supports a team’s work.",
+        },
+        {
+            "level": "L5",
+            "microskill": "Delivering Outcomes",
+            "description": "Finishes projects and achieves goals.",
+        },
+    ],
+}
+
 
 def extract_skill_from_action_type(action_type: ActionType) -> str:
     skills = []

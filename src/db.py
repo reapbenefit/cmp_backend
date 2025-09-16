@@ -6,6 +6,7 @@ from os.path import exists
 import sqlite3
 import uuid
 import aiosqlite
+import asyncio
 from config import (
     sqlite_db_path,
     chat_history_table_name,
@@ -27,7 +28,7 @@ from models import (
     UpdateActionRequest,
 )
 from frappe import add_message_to_chat_history
-from utils import skill_to_name
+from utils import skill_to_name, skill_to_microskills
 
 
 @asynccontextmanager
@@ -288,6 +289,33 @@ async def create_user(user: Dict):
         }
 
 
+async def get_or_create_user_safe(user: Dict):
+    """Safely get or create a user, handling race conditions."""
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            # First try to get existing user
+            user_id = await get_user_id_by_email(user["email"])
+            if user_id is not None:
+                return user_id
+
+            # If user doesn't exist, try to create
+            new_user = await create_user(user)
+            return new_user["id"]
+
+        except Exception as e:
+            if "Email already exists" in str(e) and attempt < max_retries - 1:
+                # User was created by another concurrent task, try to get it
+                await asyncio.sleep(0.1 * (attempt + 1))  # Exponential backoff
+                continue
+            else:
+                # Re-raise if it's not a duplicate email error or we've exhausted retries
+                raise e
+
+    # If we get here, all retries failed
+    raise Exception(f"Failed to create or get user after {max_retries} attempts")
+
+
 async def get_user_portfolio(username: str):
     """Get the portfolio of a user."""
     async with get_new_db_connection() as conn:
@@ -536,7 +564,12 @@ async def get_action_from_uuid(action_uuid: str):
             f"SELECT id FROM {actions_table_name} WHERE uuid = ?",
             (action_uuid,),
         )
-        action_id = (await result.fetchone())[0]
+        action_id = await result.fetchone()
+
+        if not action_id:
+            return None
+
+        action_id = action_id[0]
 
     return await get_action_for_user(action_id)
 
@@ -554,20 +587,15 @@ async def create_action_for_user(
         if not action_uuid:
             action_uuid = str(uuid.uuid4())
 
-        # Check if user exists, create if not
-        action_user_id = await get_user_id_by_email(action_user_email)
-
-        if action_user_id is None:
-            # Create user with email-based fallback data (similar to login process)
-            new_user = await create_user(
-                {
-                    "email": action_user_email,
-                    "first_name": "",
-                    "last_name": "",
-                    "username": action_user_email,
-                }
-            )
-            action_user_id = new_user["id"]
+        # Check if user exists, create if not (using safe method to handle race conditions)
+        action_user_id = await get_or_create_user_safe(
+            {
+                "email": action_user_email,
+                "first_name": "",
+                "last_name": "",
+                "username": action_user_email,
+            }
+        )
 
         await cursor.execute(
             f"INSERT INTO {actions_table_name} (user_id, title, status, uuid) VALUES (?, ?, ?, ?)",
@@ -698,6 +726,7 @@ async def get_skills_data_from_names(skill_names: List[str]) -> List[Skill]:
                 "id": skill[0],
                 "name": skill[1],
                 "label": skill[2],
+                "microskills": skill_to_microskills[skill[1]],
             }
             for skill in skills
         ]
@@ -791,6 +820,24 @@ async def seed_skills():
         )
 
         await conn.commit()
+
+
+async def get_all_skills():
+    async with get_new_db_connection() as conn:
+        cursor = await conn.cursor()
+
+        result = await cursor.execute(
+            f"SELECT id, name FROM {skills_table_name}",
+        )
+        skills = await result.fetchall()
+
+        return [
+            {
+                "id": skill[0],
+                "name": skill[1],
+            }
+            for skill in skills
+        ]
 
 
 async def update_skill_label(skill_id: int, label: str):

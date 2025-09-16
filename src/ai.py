@@ -21,6 +21,7 @@ from models import (
     AIUpdateActionMetadataResponse,
     AddChatMessageRequest,
 )
+from typing import Literal
 from datetime import datetime
 from settings import settings
 from utils import extract_skill_from_action_type
@@ -71,23 +72,38 @@ async def get_user_profile_summary(username: str) -> str:
 
     client = AsyncOpenAI(api_key=settings.openai_api_key)
 
-    response = await client.responses.create(
-        model="gpt-4.1-2025-04-14",
-        prompt={
-            "id": "pmpt_68c96626c44c81958e995a0326f68bb90dc5eacf81bbd824",
-            "version": "3",
-            "variables": {
-                "total_hours_invested": str(total_hours_invested),
-                "num_actions": str(len(actions)),
-                "name": user_portfolio["first_name"],
-                "current_date": datetime.now().strftime("%Y-%m-%d"),
-                "actions": str(actions),
-            },
+    with using_attributes(
+        metadata={
+            "stage": "profile_summary",
+            "username": username,
         },
-        temperature=0.1,
-        max_output_tokens=2048,
-        store=True,
-    )
+    ):
+        response = await client.responses.create(
+            model="gpt-4.1-2025-04-14",
+            input=[
+                {
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "You are a very sharp, meticulous, diligent and obedient summariser.\n\nYou will be given the list of actions a user has taken along with the skills that have been extracted for each action along with the reasoning for why each skill was extracted for the corresponding action.\n\nYou need to generate a short, plain-language summary for the user that is grounded, consistent, and auditable from their action and skill history.\n\nThis is the template to be followed:\n- Mention 2–3 top problem areas the user has acted on.\n- Use plain, everyday phrasing: “worked on issues like [X, Y, Z].\n- State clearly how many actions and hours they’ve invested in the past year.\n- Call out 1–2 top skills, with a simple line on how they showed it.\n\nTone\n- Conversational, easy to read.\n- Neutral but warm, like introducing a peer\n- Short sentences. No jargon\n",
+                        }
+                    ],
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": f"user name: {user_portfolio["first_name"]}\ntotal hours invested: {total_hours_invested}\ntotal number of actions: {len(actions)}\ntoday's date: {datetime.now().strftime("%Y-%m-%d")}\nall_actions: {actions}",
+                        }
+                    ],
+                },
+            ],
+            temperature=0.1,
+            max_output_tokens=2048,
+            store=True,
+        )
 
     return response.output_text
 
@@ -492,9 +508,16 @@ async def get_skills_from_action(
     skills = extract_skill_from_action_type(action_type)
     skills = await get_skills_data_from_names(skills)
 
+    skills_as_prompt = [
+        {"name": skill["name"], "microskills": skill["microskills"]} for skill in skills
+    ]
+
     class SkillRelevance(BaseModel):
         skill: str = Field(
             description="The skill whose relevance to the action needs to be described"
+        )
+        microskill_level: Literal["L1", "L2", "L3", "L4", "L5"] = Field(
+            description="the level of the microskill in this skill that is suitable for the action (L1/L2/L3/L4/L5)"
         )
         relevance: str = Field(
             description="Concise description of how the skill is relevant to the action based on the chat history; no need to begin with 'The student' or 'The action'; directly describe the skill relevance"
@@ -508,12 +531,9 @@ async def get_skills_from_action(
             description="The relevance of the skills to the action"
         )
 
-    parser = PydanticOutputParser(pydantic_object=SkillRelevanceOutput)
-    format_instructions = parser.get_format_instructions()
-
     chat_history_prompt = transform_chat_history_to_prompt(chat_history)
 
-    skill_relevance_system_prompt = f"""Analyze a student's action and the corresponding conversation history to provide a personalized, one-line description of how each listed skill is demonstrated in that context as 2 fields for each skill: `relevance`, for a person viewing the student's action; `response`, for the student.\n\nReview the conversation thoroughly and connect specific elements of it to the skills listed. Each description should clearly link an aspect of the conversation to the demonstration of a particular skill.\n\n# Examples\n\n**Example** (shortened for illustration purposes; real examples should detail specific parts of the conversation):\n- **Problem-Solving**: The student's question about alternative solutions shows proactive engagement.\n\n- **Communication**: The clear explanation of their thought process demonstrates effective communication.\n\n- **Critical Thinking**: The student’s questioning of assumptions indicates critical evaluation of information.\n\n# Notes\n\nConsider nuances such as tone, clarity, and depth of the conversation that might subtly demonstrate skills. Each description should be crafted to reflect both the conversation content and the student’s unique expression of the skill.\n\n### Output format\n\n{format_instructions}"""
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
 
     with using_attributes(
         metadata={
@@ -526,27 +546,37 @@ async def get_skills_from_action(
             "action_description": action_description,
         },
     ):
-        skill_relevance_response = await run_llm_responses_with_instructor(
-            api_key=settings.openai_api_key,
-            # model="gpt-4o-audio-preview-2025-06-03",
+        skill_relevance_response = await client.responses.parse(
             model="gpt-4.1-2025-04-14",
             input=[
                 {
                     "role": "system",
-                    "content": skill_relevance_system_prompt,
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "Analyze a student's action and the corresponding conversation history to provide a personalized, one-line description of how each listed skill is demonstrated in that context as 2 fields for each skill: `relevance`, for a person viewing the student's action; `response`, for the student.\n\nAlong with that, you will be given a list of different levels of the skill (called microskills). Based on the action conversation history, identify the highest level of microskill in each skill demonstrated by the user which is grounded in the conversation history.\n\nReview the conversation thoroughly and connect specific elements of it to the skills listed. Each description should clearly link an aspect of the conversation to the demonstration of a particular skill.\n\n# Examples\n\n**Example** (shortened for illustration purposes; real examples should detail specific parts of the conversation):\n- **Problem-Solving**: The student's question about alternative solutions shows proactive engagement.\n\n- **Communication**: The clear explanation of their thought process demonstrates effective communication.\n\n- **Critical Thinking**: The student’s questioning of assumptions indicates critical evaluation of information.\n\n# Notes\n\nConsider nuances such as tone, clarity, and depth of the conversation that might subtly demonstrate skills. Each description should be crafted to reflect both the conversation content and the student’s unique expression of the skill.",
+                        }
+                    ],
                 },
                 {
                     "role": "user",
-                    "content": f"Conversation history:\n```\n{chat_history_prompt}\n```\n\nSkills: {', '.join([skill['name'] for skill in skills])}",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": f"Conversation history:\n```\n{chat_history_prompt}\n```\nSkills:\n```\n{skills_as_prompt}\n```",
+                        }
+                    ],
                 },
             ],
-            response_model=SkillRelevanceOutput,
+            temperature=0,
+            text_format=SkillRelevanceOutput,
+            store=True,
             max_output_tokens=8096,
         )
 
     skill_to_index = {skill["name"]: index for index, skill in enumerate(skills)}
 
-    for skill_relevance in skill_relevance_response.skill_relevances:
+    for skill_relevance in skill_relevance_response.output_parsed.skill_relevances:
         skills[skill_to_index[skill_relevance.skill]][
             "relevance"
         ] = skill_relevance.relevance
