@@ -131,17 +131,19 @@ def get_user_portfolio(username: str):
 
     # Fix the typo in "desigantion" to "designation" in expert reviews
     for review in expert_reviews:
+        designation_key = "desigantion" if "desigantion" in review else "designation"
+
         for key in [
             "review_title",
             "reviewer_name",
-            "desigantion",
+            designation_key,
             "comment",
             "organisation",
         ]:
             if not review[key]:
                 continue
 
-        review["designation"] = review.pop("desigantion")
+        review["designation"] = review.pop(designation_key)
         user["expert_reviews"].append(review)
 
     # Create a mapping of skill names to skill data for easy lookup
