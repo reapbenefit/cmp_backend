@@ -134,17 +134,15 @@ def get_user_portfolio(username: str):
         for key in [
             "review_title",
             "reviewer_name",
-            "designation",
+            "desigantion",
             "comment",
             "organisation",
         ]:
             if not review[key]:
                 continue
 
+        review["designation"] = review.pop("desigantion")
         user["expert_reviews"].append(review)
-
-        if "desigantion" in review:
-            review["designation"] = review.pop("desigantion")
 
     # Create a mapping of skill names to skill data for easy lookup
     skill_name_to_data = {}
