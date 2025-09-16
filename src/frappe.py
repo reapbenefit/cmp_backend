@@ -133,6 +133,8 @@ def get_user_portfolio(username: str):
     for review in expert_reviews:
         designation_key = "desigantion" if "desigantion" in review else "designation"
 
+        is_valid = True
+
         for key in [
             "review_title",
             "reviewer_name",
@@ -141,9 +143,14 @@ def get_user_portfolio(username: str):
             "organisation",
         ]:
             if not review[key]:
-                continue
+                is_valid = False
+                break
+
+        if not is_valid:
+            continue
 
         review["designation"] = review.pop(designation_key)
+
         user["expert_reviews"].append(review)
 
     # Create a mapping of skill names to skill data for easy lookup
