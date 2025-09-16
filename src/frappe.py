@@ -125,10 +125,24 @@ def get_user_portfolio(username: str):
         "highlight": current_user.get("highlighted_action", {}).get("description", ""),
     }
 
-    user["expert_reviews"] = frappe_data.get("reviews", [])
+    expert_reviews = frappe_data.get("reviews", [])
+
+    user["expert_reviews"] = []
 
     # Fix the typo in "desigantion" to "designation" in expert reviews
-    for review in user["expert_reviews"]:
+    for review in expert_reviews:
+        for key in [
+            "review_title",
+            "reviewer_name",
+            "designation",
+            "comment",
+            "organisation",
+        ]:
+            if not review[key]:
+                continue
+
+        user["expert_reviews"].append(review)
+
         if "desigantion" in review:
             review["designation"] = review.pop("desigantion")
 
