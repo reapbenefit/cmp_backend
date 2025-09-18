@@ -301,9 +301,16 @@ class SkillHistory(Skill):
     history: List[SkillHistoryEvent]
 
 
+class Microskill(BaseModel):
+    title: str
+    level: str
+    description: str
+
+
 class ActionSkill(Skill):
     relevance: Optional[str] = None
     response: Optional[str] = None
+    microskill: Optional[Microskill] = None
 
 
 class BaseAction(BaseModel):
