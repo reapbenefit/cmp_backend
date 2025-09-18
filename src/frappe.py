@@ -285,6 +285,7 @@ async def create_or_update_action_on_frappe(
     action_uuid: str,
     subcategory: str,
     subtype: str,
+    skills: list[dict],
     mode: Literal["create", "update"] = "create",
 ):
     from db import get_action_for_user
@@ -304,9 +305,14 @@ async def create_or_update_action_on_frappe(
             "user": action_details["user"]["email"],
             "description": action_details["description"],
             "source": "ConversationalBot",
-            "skills": {
-                skill["label"]: skill["summary"] for skill in action_details["skills"]
-            },
+            "skills": [
+                {
+                    "label": skill["label"],
+                    "summary": skill["relevance"],
+                    "level": skill["microskill_level"],
+                }
+                for skill in skills
+            ],
         }
     )
     headers = {

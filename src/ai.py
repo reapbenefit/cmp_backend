@@ -582,6 +582,9 @@ async def get_skills_from_action(
         skills[skill_to_index[skill_relevance.skill]][
             "response"
         ] = skill_relevance.response
+        skills[skill_to_index[skill_relevance.skill]][
+            "microskill_level"
+        ] = skill_relevance.microskill_level
 
     return skills
 
@@ -590,6 +593,7 @@ async def get_skills_from_action(
 async def extract_action_metadata(action_uuid: str):
     chat_history = await get_action_chat_history(action_uuid)
     action_metadata = await get_action_metadata_from_chat_history(chat_history)
+
     skills = await get_skills_from_action(
         chat_history,
         action_metadata["action_type"],
@@ -599,6 +603,7 @@ async def extract_action_metadata(action_uuid: str):
         action_metadata["action_title"],
         action_metadata["action_description"],
     )
+
     action_metadata["skills"] = skills
 
     action = await update_action_for_user(
@@ -621,6 +626,7 @@ async def extract_action_metadata(action_uuid: str):
         action_uuid,
         action_metadata["action_subcategory"],
         action_metadata["action_subtype"],
+        action_metadata["skills"],
         mode=mode,
     )
 
@@ -638,6 +644,7 @@ async def update_action_metadata(action_uuid: str):
     ]
 
     action_metadata = await get_action_metadata_from_chat_history(chat_history)
+
     action = await get_action_from_uuid(action_uuid)
 
     has_changed = action["type"] != action_metadata["action_type"]
@@ -670,6 +677,7 @@ async def update_action_metadata(action_uuid: str):
         action_uuid,
         action_metadata["action_subcategory"],
         action_metadata["action_subtype"],
+        action_metadata["skills"],
         mode="update",
     )
 
