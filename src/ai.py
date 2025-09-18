@@ -108,23 +108,29 @@ async def get_user_profile_summary(username: str) -> str:
     return response.output_text
 
 
+class AIChatOutput(BaseModel):
+    chain_of_thought: str = Field(
+        description="Reflect on the chat so far to clearly identify what questions have been answered already and what should be answered in the next question. Reflect on the language used by the student and hence, which language you should be responding in"
+    )
+    response: str = Field(
+        description="The response to be given to the student in the language of their last message. If they have used english characters to speak in their native language, respond in the same language using english characters. if they have used the native script characters to speak in their native language, respond in the same script characters."
+    )
+    is_done: bool = Field(description="Whether the conversation is done")
+    language: str = Field(
+        description="The language of the student, give in the format of english, hindi, kannada, etc."
+    )
+
+
 async def get_basic_action_response_from_chat_history(
     chat_history: List[ChatHistoryMessage], model: str = "gpt-4.1-2025-04-14"
 ):
-    class Output(BaseModel):
-        chain_of_thought: str = Field(
-            description="Reflect on the chat so far to clearly identify what questions have been answered already and what should be answered in the next question"
-        )
-        response: str = Field(description="The response to be given to the student")
-        is_done: bool = Field(description="Whether the conversation is done")
-
     with using_attributes(
         metadata={"stage": "basic_action_chat"},
     ):
         return await stream_llm_responses_with_instructor(
             api_key=settings.openai_api_key,
             model=model,
-            response_model=Output,
+            response_model=AIChatOutput,
             max_output_tokens=8096,
             temperature=0.1,
             input=[
@@ -271,13 +277,6 @@ def transform_raw_chat_history_for_detail_action_chat(
 async def detail_action_chat_stream(
     request: DetailActionChatRequest, model: str = "gpt-4.1-2025-04-14"
 ):
-    class Output(BaseModel):
-        chain_of_thought: str = Field(
-            description="Reflect on the chat so far to clearly identify what aspects have been covered already and what should be covered in the next question"
-        )
-        response: str = Field(description="The response to be given to the student")
-        is_done: bool = Field(description="Whether the conversation is done")
-
     chat_history = await get_action_chat_history(request.action_uuid)
 
     for message in chat_history:
@@ -306,7 +305,7 @@ async def detail_action_chat_stream(
             stream = await stream_llm_responses_with_instructor(
                 api_key=settings.openai_api_key,
                 model=model,
-                response_model=Output,
+                response_model=AIChatOutput,
                 max_output_tokens=8096,
                 temperature=0.1,
                 input=[
