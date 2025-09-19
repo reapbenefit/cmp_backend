@@ -199,7 +199,7 @@ def get_user_portfolio(username: str):
         action_event_id = log_entry.get("reference_name", "")
         reason = log_entry.get("reason", "")
         creation_time = log_entry.get("creation", "")
-        microskill = log_entry.get("microskill", {})
+        microskill = log_entry.get("microskill", None)
 
         # Track the first skill creation time for each action
         if action_event_id not in action_first_skill_creation:
