@@ -1,4 +1,6 @@
 import json
+import logging
+import asyncio
 from typing import Dict, List
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -25,7 +27,11 @@ from typing import Literal
 from datetime import datetime
 from settings import settings
 from utils import extract_skill_from_action_type
-from frappe import create_or_update_action_on_frappe, event_exists
+from frappe import (
+    create_or_update_action_on_frappe,
+    event_exists,
+    update_user_summary,
+)
 from db import (
     get_skills_data_from_names,
     get_action_from_uuid,
@@ -105,7 +111,11 @@ async def get_user_profile_summary(username: str) -> str:
             store=True,
         )
 
-    return response.output_text
+    summary = response.output_text
+
+    update_user_summary(username, summary)
+
+    return summary
 
 
 class AIChatOutput(BaseModel):
@@ -621,14 +631,23 @@ async def extract_action_metadata(action_uuid: str):
     # to recreate the event on frappe, it will throw an error
     mode = "create" if not await event_exists(action_uuid) else "update"
 
-    await create_or_update_action_on_frappe(
-        action["id"],
-        action_uuid,
-        action_metadata["action_subcategory"],
-        action_metadata["action_subtype"],
-        action_metadata["skills"],
-        mode=mode,
+    coroutines = []
+
+    # Update user profile summary after action metadata is processed
+    coroutines.append(get_user_profile_summary(action["user"]["username"]))
+
+    coroutines.append(
+        create_or_update_action_on_frappe(
+            action["id"],
+            action_uuid,
+            action_metadata["action_subcategory"],
+            action_metadata["action_subtype"],
+            action_metadata["skills"],
+            mode=mode,
+        )
     )
+
+    await asyncio.gather(*coroutines)
 
     return action_metadata
 
@@ -643,6 +662,7 @@ async def update_action_metadata(action_uuid: str):
         message for message in chat_history if message["role"] != "analysis"
     ]
 
+    logging.info(f"Extracting action metadata")
     action_metadata = await get_action_metadata_from_chat_history(chat_history)
 
     action = await get_action_from_uuid(action_uuid)
@@ -650,6 +670,7 @@ async def update_action_metadata(action_uuid: str):
     has_changed = action["type"] != action_metadata["action_type"]
 
     # get updated skill relevance
+    logging.info(f"Updating skill relevance")
     skills = await get_skills_from_action(
         chat_history,
         action_metadata["action_type"],
@@ -672,14 +693,24 @@ async def update_action_metadata(action_uuid: str):
         action_metadata["skills"],
     )
 
-    await create_or_update_action_on_frappe(
-        action["id"],
-        action_uuid,
-        action_metadata["action_subcategory"],
-        action_metadata["action_subtype"],
-        action_metadata["skills"],
-        mode="update",
+    coroutines = []
+
+    logging.info(f"Updating user profile summary for user {action['user']['username']}")
+    # Update user profile summary after action metadata is processed
+    coroutines.append(get_user_profile_summary(action["user"]["username"]))
+
+    coroutines.append(
+        create_or_update_action_on_frappe(
+            action["id"],
+            action_uuid,
+            action_metadata["action_subcategory"],
+            action_metadata["action_subtype"],
+            action_metadata["skills"],
+            mode="update",
+        )
     )
+
+    await asyncio.gather(*coroutines)
 
     return {
         "has_changed": has_changed,

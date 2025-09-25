@@ -505,7 +505,7 @@ async def get_action_for_user(action_id: int):
         cursor = await conn.cursor()
 
         result = await cursor.execute(
-            f"SELECT a.id, a.uuid, a.title, a.description, a.status, a.is_verified, a.created_at, a.category, a.type, a.user_id, u.email, a.time_invested_value, a.time_invested_unit FROM {actions_table_name} a INNER JOIN {users_table_name} u ON a.user_id = u.id WHERE a.id = ?",
+            f"SELECT a.id, a.uuid, a.title, a.description, a.status, a.is_verified, a.created_at, a.category, a.type, a.user_id, u.email, u.username, a.time_invested_value, a.time_invested_unit FROM {actions_table_name} a INNER JOIN {users_table_name} u ON a.user_id = u.id WHERE a.id = ?",
             (action_id,),
         )
 
@@ -549,10 +549,11 @@ async def get_action_for_user(action_id: int):
             "user": {
                 "id": action[9],
                 "email": action[10],
+                "username": action[11],
             },
             "skills": skills,
-            "time_invested_value": action[11],
-            "time_invested_unit": action[12],
+            "time_invested_value": action[12],
+            "time_invested_unit": action[13],
         }
 
 

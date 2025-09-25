@@ -122,8 +122,18 @@ def get_user_portfolio(username: str):
         "location_state": current_user.get("state", ""),
         "location_city": current_user.get("city", ""),
         "location_country": current_user.get("location", ""),
-        "highlight": current_user.get("highlighted_action", {}).get("description", ""),
     }
+
+    user_metadata = frappe_data.get("user_metadata", {})
+
+    if "summary" in user_metadata and user_metadata["summary"]:
+        user["highlight"] = user_metadata["summary"]
+    elif highlighted_action := current_user.get("highlighted_action", {}).get(
+        "description", ""
+    ):
+        user["highlight"] = highlighted_action
+    else:
+        user["highlight"] = ""
 
     expert_reviews = frappe_data.get("reviews", [])
 
@@ -329,6 +339,28 @@ async def create_or_update_action_on_frappe(
     if response.status_code != 200:
         raise Exception(
             f"Failed to create action on frappe: {response.text} for action {action_uuid}"
+        )
+
+
+def update_user_summary(username: str, summary: str):
+    url = f"{settings.frappe_backend_base_url}/method/solve_ninja.api.profile.update_user_summary"
+
+    payload = json.dumps(
+        {
+            "username": username,
+            "summary": summary,
+        }
+    )
+    headers = {
+        "Authorization": f"token {settings.frappe_backend_client_id}:{settings.frappe_backend_client_secret}",
+        "Content-Type": "application/json",
+    }
+
+    response = requests.request("PUT", url, headers=headers, data=payload)
+
+    if response.status_code != 200:
+        raise Exception(
+            f"Failed to update user summary on frappe: {response.text} for user {username}"
         )
 
 
