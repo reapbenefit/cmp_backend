@@ -323,7 +323,7 @@ class BaseAction(BaseModel):
     is_pinned: Optional[bool] = None
     category: Optional[str] = None
     type: Optional[str] = None
-    created_at: datetime
+    created_at: datetime | str
     skills: Optional[List[ActionSkill]] = None
     chat_history: Optional[List[ChatMessage]] = None
 
