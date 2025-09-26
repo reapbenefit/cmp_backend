@@ -301,9 +301,16 @@ class SkillHistory(Skill):
     history: List[SkillHistoryEvent]
 
 
+class Microskill(BaseModel):
+    title: str
+    level: str
+    description: str
+
+
 class ActionSkill(Skill):
     relevance: Optional[str] = None
     response: Optional[str] = None
+    microskill: Optional[Microskill] = None
 
 
 class BaseAction(BaseModel):
@@ -316,7 +323,7 @@ class BaseAction(BaseModel):
     is_pinned: Optional[bool] = None
     category: Optional[str] = None
     type: Optional[str] = None
-    created_at: datetime
+    created_at: datetime | str
     skills: Optional[List[ActionSkill]] = None
     chat_history: Optional[List[ChatMessage]] = None
 

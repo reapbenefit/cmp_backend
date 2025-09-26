@@ -122,8 +122,18 @@ def get_user_portfolio(username: str):
         "location_state": current_user.get("state", ""),
         "location_city": current_user.get("city", ""),
         "location_country": current_user.get("location", ""),
-        "highlight": current_user.get("highlighted_action", {}).get("description", ""),
     }
+
+    user_metadata = frappe_data.get("user_metadata", {})
+
+    if "summary" in user_metadata and user_metadata["summary"]:
+        user["highlight"] = user_metadata["summary"]
+    elif highlighted_action := current_user.get("highlighted_action", {}).get(
+        "description", ""
+    ):
+        user["highlight"] = highlighted_action
+    else:
+        user["highlight"] = ""
 
     expert_reviews = frappe_data.get("reviews", [])
 
@@ -199,6 +209,7 @@ def get_user_portfolio(username: str):
         action_event_id = log_entry.get("reference_name", "")
         reason = log_entry.get("reason", "")
         creation_time = log_entry.get("creation", "")
+        microskill = log_entry.get("microskill", None)
 
         # Track the first skill creation time for each action
         if action_event_id not in action_first_skill_creation:
@@ -227,6 +238,7 @@ def get_user_portfolio(username: str):
                     "name": skill_info["name"],
                     "label": skill_info["label"],
                     "relevance": reason,
+                    "microskill": microskill,
                 }
             )
 
@@ -285,6 +297,7 @@ async def create_or_update_action_on_frappe(
     action_uuid: str,
     subcategory: str,
     subtype: str,
+    skills: list[dict],
     mode: Literal["create", "update"] = "create",
 ):
     from db import get_action_for_user
@@ -304,9 +317,14 @@ async def create_or_update_action_on_frappe(
             "user": action_details["user"]["email"],
             "description": action_details["description"],
             "source": "ConversationalBot",
-            "skills": {
-                skill["label"]: skill["summary"] for skill in action_details["skills"]
-            },
+            "skills": [
+                {
+                    "label": skill["label"],
+                    "summary": skill["relevance"],
+                    "level": skill["microskill_level"],
+                }
+                for skill in skills
+            ],
         }
     )
     headers = {
@@ -321,6 +339,28 @@ async def create_or_update_action_on_frappe(
     if response.status_code != 200:
         raise Exception(
             f"Failed to create action on frappe: {response.text} for action {action_uuid}"
+        )
+
+
+def update_user_summary(username: str, summary: str):
+    url = f"{settings.frappe_backend_base_url}/method/solve_ninja.api.profile.update_user_summary"
+
+    payload = json.dumps(
+        {
+            "username": username,
+            "summary": summary,
+        }
+    )
+    headers = {
+        "Authorization": f"token {settings.frappe_backend_client_id}:{settings.frappe_backend_client_secret}",
+        "Content-Type": "application/json",
+    }
+
+    response = requests.request("PUT", url, headers=headers, data=payload)
+
+    if response.status_code != 200:
+        raise Exception(
+            f"Failed to update user summary on frappe: {response.text} for user {username}"
         )
 
 
