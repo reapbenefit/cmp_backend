@@ -20,6 +20,7 @@ from models import (
     AddChatMessageRequest,
     CreateActionResponse,
     UpdateActionHoursInvestedRequest,
+    BaseUser,
 )
 import traceback
 from settings import settings
@@ -139,6 +140,21 @@ async def login_with_sso(request: LoginWithSSORequest):
         "username": user_profile["current_user"]["username"],
     }
 
+
+@app.post("/get_or_create_user_by_email")
+async def get_or_create_user_by_email(request: BaseUser):
+        user_id = await get_user_id_by_email(request.email)
+        if user_id is None:
+            new_user = await create_user(
+                {
+                    "email": request.email,
+                    "first_name": request.first_name,   
+                    "last_name": request.last_name,
+                    "username": request.username,
+                }
+            )
+            return new_user["id"]
+        return user_id
 
 @app.get("/portfolio/{username}")
 async def get_portfolio(username: str) -> Portfolio:
