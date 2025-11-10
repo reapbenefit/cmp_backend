@@ -40,7 +40,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            mkdir -p ~/rb-backend-deploy-prod
+            mkdir -p ~/cmp-backend-deploy-prod
 
       - name: Copy docker-compose.yml to EC2
         uses: appleboy/scp-action@v0.1.4
@@ -49,7 +49,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           source: 'docker-compose.prod.yml'
-          target: '~/rb-backend-deploy-prod/'
+          target: '~/cmp-backend-deploy-prod/'
           overwrite: true
 
       - name: Deploy to EC2
@@ -59,7 +59,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd ~/rb-backend-deploy-prod
+            cd ~/cmp-backend-deploy-prod
 
             # Set environment variables
             export DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
