@@ -46,6 +46,14 @@ from frappe import (
     get_user_portfolio,
 )
 
+import logging
+import sys
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+
 app = FastAPI()
 
 app.include_router(router)

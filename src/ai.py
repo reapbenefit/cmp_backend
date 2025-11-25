@@ -43,6 +43,7 @@ from openinference.instrumentation import using_attributes
 from openai import AsyncOpenAI
 from frappe import get_user_portfolio
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -640,7 +641,7 @@ async def extract_action_metadata(action_uuid: str):
             mode=mode,
         )
     
-    logging.info(action["user"]["username"])
+    logger.info(action["user"]["username"])
      # Update user profile summary after action metadata is processed
     await get_user_profile_summary(action["user"]["username"])
 
@@ -657,7 +658,7 @@ async def update_action_metadata(action_uuid: str):
         message for message in chat_history if message["role"] != "analysis"
     ]
 
-    logging.info(f"Extracting action metadata")
+    logger.info(f"Extracting action metadata")
     action_metadata = await get_action_metadata_from_chat_history(chat_history)
 
     action = await get_action_from_uuid(action_uuid)
@@ -665,7 +666,7 @@ async def update_action_metadata(action_uuid: str):
     has_changed = action["type"] != action_metadata["action_type"]
 
     # get updated skill relevance
-    logging.info(f"Updating skill relevance")
+    logger.info(f"Updating skill relevance")
     skills = await get_skills_from_action(
         chat_history,
         action_metadata["action_type"],
@@ -690,7 +691,7 @@ async def update_action_metadata(action_uuid: str):
 
     coroutines = []
 
-    logging.info(f"Updating user profile summary for user {action['user']['username']}")
+    logger.info(f"Updating user profile summary for user {action['user']['username']}")
     # Update user profile summary after action metadata is processed
     coroutines.append(get_user_profile_summary(action["user"]["username"]))
 
