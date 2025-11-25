@@ -640,7 +640,7 @@ async def extract_action_metadata(action_uuid: str):
             mode=mode,
         )
     
-
+    logging.info(action["user"]["username"])
      # Update user profile summary after action metadata is processed
     await get_user_profile_summary(action["user"]["username"])
 
