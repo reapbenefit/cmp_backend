@@ -631,13 +631,7 @@ async def extract_action_metadata(action_uuid: str):
     # to recreate the event on frappe, it will throw an error
     mode = "create" if not await event_exists(action_uuid) else "update"
 
-    coroutines = []
-
-    # Update user profile summary after action metadata is processed
-    coroutines.append(get_user_profile_summary(action["user"]["username"]))
-
-    coroutines.append(
-        create_or_update_action_on_frappe(
+    await create_or_update_action_on_frappe(
             action["id"],
             action_uuid,
             action_metadata["action_subcategory"],
@@ -645,9 +639,10 @@ async def extract_action_metadata(action_uuid: str):
             action_metadata["skills"],
             mode=mode,
         )
-    )
+    
 
-    await asyncio.gather(*coroutines)
+     # Update user profile summary after action metadata is processed
+    await get_user_profile_summary(action["user"]["username"])
 
     return action_metadata
 
