@@ -5,7 +5,9 @@ import asyncpg
 from settings import settings
 from typing import Literal
 from contextlib import asynccontextmanager
+import logging
 
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def get_db_connection():
@@ -138,7 +140,7 @@ def get_user_portfolio(username: str):
     expert_reviews = frappe_data.get("reviews", [])
 
     user["expert_reviews"] = []
-
+    logger.info(f"Current user: {current_user}")
     if current_user.get("partner", None):
         user["partner"] = {
                 "partner_name": current_user.get("partner", {}).get("partner_name", ""),
