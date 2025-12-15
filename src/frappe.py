@@ -284,7 +284,7 @@ def get_user_portfolio(username: str):
     # Convert skill data to list format
     skills = list(skill_name_to_data.values())
 
-    return {
+    result = {
         "first_name": user["first_name"],
         "last_name": user["last_name"],
         "username": user["username"],
@@ -300,8 +300,13 @@ def get_user_portfolio(username: str):
         "actions": actions,
         "skills": skills,
         "expert_reviews": user["expert_reviews"],
-        "partner": user["partner"],
     }
+    
+    # Only include partner if it's not None
+    if user["partner"] is not None:
+        result["partner"] = user["partner"]
+    logger.info(f"result partner : {result['partner']}")
+    return result
 
 
 async def create_or_update_action_on_frappe(
