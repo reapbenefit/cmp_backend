@@ -140,8 +140,8 @@ def get_user_portfolio(username: str):
     expert_reviews = frappe_data.get("reviews", [])
 
     user["expert_reviews"] = []
-    logger.info(f"Current user: {current_user}")
     partner = current_user.get("partner")
+    logger.info(f"partner : {partner}")
     if partner:
         user["partner"] = {
             "partner_name": partner.get("partner_name", ""),
@@ -149,7 +149,7 @@ def get_user_portfolio(username: str):
         }
     else:
         user["partner"] = None
-
+    logger.info(f"user partner : {user['partner']}")
     # Fix the typo in "desigantion" to "designation" in expert reviews
     for review in expert_reviews:
         designation_key = "desigantion" if "desigantion" in review else "designation"
