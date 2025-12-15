@@ -141,7 +141,6 @@ def get_user_portfolio(username: str):
 
     user["expert_reviews"] = []
     partner = current_user.get("partner")
-    logger.info(f"partner : {partner}")
     if partner:
         user["partner"] = {
             "partner_name": partner.get("partner_name", ""),
@@ -149,7 +148,6 @@ def get_user_portfolio(username: str):
         }
     else:
         user["partner"] = None
-    logger.info(f"user partner : {user['partner']}")
     # Fix the typo in "desigantion" to "designation" in expert reviews
     for review in expert_reviews:
         designation_key = "desigantion" if "desigantion" in review else "designation"
@@ -305,7 +303,6 @@ def get_user_portfolio(username: str):
     # Only include partner if it's not None
     if user["partner"] is not None:
         result["partner"] = user["partner"]
-    logger.info(f"result partner : {result['partner']}")
     return result
 
 

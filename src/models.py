@@ -340,6 +340,11 @@ class ExpertReview(BaseModel):
     organisation: str
 
 
+class Partner(BaseModel):
+    partner_name: str
+    partner_logo: str
+
+
 class Portfolio(BaseUser):
     is_verified: bool
     bio: str | None = None
@@ -352,6 +357,7 @@ class Portfolio(BaseUser):
     actions: List[BaseAction] | None = None
     skills: List[SkillHistory] | None = None
     expert_reviews: List[ExpertReview] | None = None
+    partner: Partner | None = None
 
 
 class UpdateActionRequest(BaseModel):
