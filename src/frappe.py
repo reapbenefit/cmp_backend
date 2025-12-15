@@ -139,6 +139,14 @@ def get_user_portfolio(username: str):
 
     user["expert_reviews"] = []
 
+    if current_user.get("partner", None):
+        user["partner"] = {
+                "partner_name": current_user.get("partner", {}).get("partner_name", ""),
+                "partner_logo": current_user.get("partner", {}).get("partner_logo", ""),
+        }
+    else:
+        user["partner"] = None
+
     # Fix the typo in "desigantion" to "designation" in expert reviews
     for review in expert_reviews:
         designation_key = "desigantion" if "desigantion" in review else "designation"
