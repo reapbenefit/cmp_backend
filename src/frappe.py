@@ -141,10 +141,11 @@ def get_user_portfolio(username: str):
 
     user["expert_reviews"] = []
     logger.info(f"Current user: {current_user}")
-    if current_user.get("partner", None):
+    partner = current_user.get("partner")
+    if partner:
         user["partner"] = {
-                "partner_name": current_user.get("partner", {}).get("partner_name", ""),
-                "partner_logo": current_user.get("partner", {}).get("partner_logo", ""),
+            "partner_name": partner.get("partner_name", ""),
+            "partner_logo": partner.get("partner_logo", ""),
         }
     else:
         user["partner"] = None
@@ -299,6 +300,7 @@ def get_user_portfolio(username: str):
         "actions": actions,
         "skills": skills,
         "expert_reviews": user["expert_reviews"],
+        "partner": user["partner"],
     }
 
 
