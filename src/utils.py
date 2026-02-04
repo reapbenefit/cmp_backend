@@ -11,7 +11,6 @@ skill_to_name = {
     "hands_on": "Hands on",
     "problem_solving": "Problem Solving",
     "entrepreneurial": "Entrepreneurial",
-    "try_new_things": "Try New Things",
 }
 
 skill_to_microskills = {
@@ -303,7 +302,6 @@ def extract_skill_from_action_type(action_type: ActionType) -> str:
                 "critical_thinking",
                 "problem_solving",
                 "entrepreneurial",
-                "try_new_things",
             ]
         )
 
@@ -369,7 +367,7 @@ def extract_skill_from_action_type(action_type: ActionType) -> str:
     # Project idea
     elif action_type == ActionType.PROJECT_IDEA:
         skills.extend(
-            ["communication", "problem_solving", "try_new_things", "applied_empathy"]
+            ["communication", "problem_solving", "applied_empathy"]
         )
 
     # Prototype
@@ -379,7 +377,6 @@ def extract_skill_from_action_type(action_type: ActionType) -> str:
                 "communication",
                 "critical_thinking",
                 "problem_solving",
-                "try_new_things",
                 "grit",
             ]
         )
