@@ -94,7 +94,7 @@ def get_user_profile_from_username(username: str):
     }
 
     payload = json.dumps({"username": username})
-
+    logger.info(payload)
     response = requests.request("POST", url, headers=headers, data=payload)
 
     if response.status_code != 200:
