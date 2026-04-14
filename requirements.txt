@@ -6,9 +6,7 @@ instructor==1.11.3
 pydantic==2.11.7                                                                                                      
 pydantic-settings==2.9.1                                                                                              
 langchain-core==0.3.40
-arize-phoenix==10.12.0
 openinference-instrumentation-openai==0.1.30
 asyncpg==0.30.0
 pytz==2024.1
-arize-phoenix-evals==10.12.0
-arize-phoenix-otel==10.12.0
+arize-phoenix==3.25.0
