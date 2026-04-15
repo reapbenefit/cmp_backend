@@ -324,6 +324,9 @@ class BaseAction(BaseModel):
     category: Optional[str] = None
     type: Optional[str] = None
     created_at: datetime | str
+    date_of_action: datetime | str | None = None
+    attachment1: str | None = None
+    attachment2: str | None = None
     skills: Optional[List[ActionSkill]] = None
     chat_history: Optional[List[ChatMessage]] = None
 

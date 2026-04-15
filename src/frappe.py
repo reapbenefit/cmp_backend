@@ -272,6 +272,9 @@ def get_user_portfolio(username: str):
             "category": action_data.get("category", ""),
             "type": action_data.get("type", ""),
             "created_at": created_at,
+            "date_of_action": action_data.get("date_of_action", None),
+            "attachment1": action_data.get("attachment1", None),
+            "attachment2": action_data.get("attachment2", None),
             "skills": action_skills_map.get(
                 event_id, []
             ),  # Populate skills from skill assignment log
