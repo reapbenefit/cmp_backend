@@ -2,7 +2,7 @@ import json
 import logging
 import asyncio
 from typing import Dict, List
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import PydanticOutputParser
@@ -127,9 +127,30 @@ class AIChatOutput(BaseModel):
         description="The response to be given to the student in the language of their last message. If they have used english characters to speak in their native language, respond in the same language using english characters. if they have used the native script characters to speak in their native language, respond in the same script characters."
     )
     is_done: bool = Field(description="Whether the conversation is done")
+    create_action: bool = Field(
+        description="True only if the student described a concrete civic/local action they already took that should be stored and published. False if they have not acted yet, are only planning, or there is no substantive deed to record."
+    )
     language: str = Field(
         description="The language of the student, give in the format of english, hindi, kannada, etc."
     )
+
+
+def chat_history_allows_action_pipeline(chat_history: List[Dict]) -> bool:
+    """Uses the latest structured assistant payload. Missing create_action defaults True (legacy chats)."""
+    for message in reversed(chat_history):
+        if message.get("role") != "assistant":
+            continue
+        try:
+            payload = json.loads(message["content"])
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if (
+            isinstance(payload, dict)
+            and "response" in payload
+            and "is_done" in payload
+        ):
+            return bool(payload.get("create_action", True))
+    return True
 
 
 async def get_basic_action_response_from_chat_history(
@@ -176,6 +197,11 @@ If it’s outside your scope (e.g. platform bugs, submission issues) → say:
 
 - If the student struggles to respond meaningfully, do not end the conversation prematurely. Instead, move on to the next best reflective question. 
 - The conversation should be marked as done if either: a) the what, why and how of the action they took has been mentioned; or b) 3 reflective questions have been asked.
+
+### create_action flag (critical)
+- Set create_action to **true** only if the student described a **concrete action they already took** to address a local or civic problem, with enough substance that it could be recorded as their action.
+- Set create_action to **false** if they say they have **not** taken any action yet, are only thinking about acting, the message is off-topic, or there is **no real-world deed** to record.
+- You may set **is_done** to true together with **create_action** false when you close politely (for example encouraging them to come back after they have acted).
 
 ### Closing the conversation
 Once you have marked the conversation as done, the accompanying feedback should end the conversation on an uplifting note recognizing their contribution, summarizing one key insight or strength that emerged from their answers and encouraging them to keep taking action. Never ever leave the conversation open-ended when marking it as done.
@@ -300,6 +326,12 @@ async def detail_action_chat_stream(
         message for message in chat_history if message["role"] != "analysis"
     ]
 
+    if not chat_history_allows_action_pipeline(chat_history):
+        raise HTTPException(
+            status_code=400,
+            detail="Detailed reflection requires create_action to be true on the latest coach turn.",
+        )
+
     chat_history += [
         {
             "role": "user",
@@ -365,6 +397,7 @@ Skip any of the phases above if the chat so far has already answered that questi
 Within a phase, skip any of the questions if it has already been answered in the conversation history before.
 
 ### Important Instructions
+- Always set **create_action** to **true** in every reply in this phase. The student has already passed basic intake where their deed was confirmed as recordable; detailed reflection is only for substantive actions.
 - Keep the tone warm, conversational, and efficient. Avoid being verbose.
 - Aim to ask 5-7 questions but allow up to 10 if the student is responding meaningfully and more clarity or reflection is needed.
   - If needed, let them skip: “No worries, we can come back to this later.”
@@ -603,6 +636,11 @@ async def get_skills_from_action(
 @router.post("/ai/extract_action_metadata", response_model=AIActionMetadataResponse)
 async def extract_action_metadata(action_uuid: str):
     chat_history = await get_action_chat_history(action_uuid)
+    if not chat_history_allows_action_pipeline(chat_history):
+        raise HTTPException(
+            status_code=400,
+            detail="Metadata extraction requires create_action to be true on the latest coach turn.",
+        )
     action_metadata = await get_action_metadata_from_chat_history(chat_history)
 
     skills = await get_skills_from_action(

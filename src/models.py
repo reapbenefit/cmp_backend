@@ -402,6 +402,7 @@ class AIChatResponse(BaseModel):
     chain_of_thought: str
     response: str
     is_done: bool
+    create_action: bool
     language: str
 
 
