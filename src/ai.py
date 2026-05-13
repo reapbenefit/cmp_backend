@@ -504,7 +504,60 @@ async def get_action_metadata_from_chat_history(chat_history: List[Dict]):
     parser = PydanticOutputParser(pydantic_object=Output)
     format_instructions = parser.get_format_instructions()
 
-    system_prompt = f"""Extract the action type, action category, action title and action description from the given conversation history of a young person describing their actions to solve a local civic problem. Use the provided lists to identify the correct action type and category.\n\n# Steps\n\n1. **Review the Conversation:** Thoroughly read the conversation history to understand the actions the young person has described.\n2. **Identify Action Type:** Determine the action type from the conversation, ensuring it aligns with one of the listed action types. Focus on specific verbs or phrases that indicate the nature of the activity.\n3. **Identify Action Category:** Determine the action category based on the topic or area addressed in the conversation. Use the given list to find the most suitable category.\n4. **Ensure Uniqueness:** Each task should conclude with one unique action type and one unique action category.\n\n### Output format\n\n{format_instructions}"""
+    system_prompt = f"""
+    
+Extract the action type, action category, action title and action description from the given conversation history of a young person describing their actions to solve a local civic problem. Use the provided lists to identify the correct action type and category.
+
+# Steps
+
+1. **Review the Conversation:** Thoroughly read the conversation history to understand the actions the young person has described.
+
+2. **Identify the Primary Civic Action:** 
+Focus on the MAIN purpose or outcome of the activity, not just the methods used.
+
+- If multiple activities are mentioned (for example surveys, interviews, measurements, awareness activities, meetings, or data collection), determine the primary civic intent behind them.
+- Methods such as questionnaires, interviews, feedback collection, or surveys may simply support a larger investigation or audit activity.
+
+3. **Identify Action Type:** 
+Determine the most appropriate action type from the provided list.
+
+Guidelines:
+- If surveys/questionnaires/interviews are mainly used to investigate, analyze, assess, monitor, validate, or audit a civic/environmental issue, classify the action as **Investigation/Audit**.
+- Only classify as a survey-related action when conducting the survey itself is the primary objective and outcome.
+- Prefer broader civic intent over isolated verbs or keywords.
+
+Examples:
+- "Collected feedback and compared it with pollution sensor data" → Investigation/Audit
+- "Measured temperature and interviewed residents about comfort" → Investigation/Audit
+- "Conducted a household survey to understand water access patterns" → Survey
+- "Asked citizens to fill forms to gather opinions for a report" → Survey
+
+4. **Identify Action Category:** 
+Determine the most suitable action category based on the issue/topic discussed in the conversation.
+
+5. **Generate Action Title:** 
+Generate a short action title (less than 5 words) that clearly summarizes the civic action taken.
+
+6. **Generate Action Description:** 
+Generate a concise description (less than 50 words) summarizing what the young person did.
+
+7. **Ensure Uniqueness:** 
+Return exactly:
+- one unique action type
+- one unique action subtype
+- one unique action category
+- one unique action subcategory
+
+### Important Instructions
+
+- Focus on the real-world civic objective of the action.
+- Do not classify solely based on words like “survey”, “questionnaire”, “feedback”, or “interview”.
+- Prefer classifications that best represent the overall impact and intent of the action.
+- Use only values from the provided enums/lists.
+
+### Output format
+
+{format_instructions}"""
 
     chat_history_prompt = transform_chat_history_to_prompt(chat_history)
 
