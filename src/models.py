@@ -30,6 +30,17 @@ class ActionType(str, Enum):
     GRIEVANCE_HANDLING = "Grievance Handling"
     OTHER_ACTIVITY = "Other Activity"
 
+    def __str__(self):
+        return self.value
+
+    def __eq__(self, other):
+        if isinstance(other, ActionType):
+            return self.value == other.value
+
+        if isinstance(other, str):
+            return self.value == other
+
+        return False
 
 class ActionSubType(str, Enum):
     JOINED_A_CAMPAIGN = "Joined a Campaign"
@@ -79,7 +90,7 @@ class ActionSubType(str, Enum):
         return self.value
 
     def __eq__(self, other):
-        if isinstance(other, ActionType):
+        if isinstance(other, ActionSubType):
             return self.value == other.value
 
         if isinstance(other, str):
