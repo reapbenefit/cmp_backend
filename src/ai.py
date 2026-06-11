@@ -507,7 +507,7 @@ async def get_action_metadata_from_chat_history(chat_history: List[Dict]):
 
     system_prompt = f"""
     
-Extract the action type, action category, action title and action description from the given conversation history of a young person describing their actions to solve a local civic problem. Use the provided lists to identify the correct action type and category.
+Extract the action type, action sub type, action category, action title and action description from the given conversation history of a young person describing their actions to solve a local civic problem. Use the provided lists to identify the correct action type and category.
 
 # Steps
 
