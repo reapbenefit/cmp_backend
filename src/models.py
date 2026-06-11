@@ -43,16 +43,21 @@ class ActionType(str, Enum):
         return False
 
 class ActionSubType(str, Enum):
+    # Campaign
     JOINED_A_CAMPAIGN = "Joined a Campaign"
     CREATED_A_CAMPAIGN = "Created a Campaign"
 
+    # Report
     REPORTED_ISSUE = "reported issue"
+    OLD_REPORT_FOLLOWUP = "Old report followup"
     REGULAR_WASTE_PICK_UP = "Regular waste pick up"
     FOLLOWED_UP = "followed up"
 
+    # Hands on
     TECH_PROTOTYPE = "Tech prototype"
     NON_TECH_PROTOTYPE = "Non tech prototype"
     TECH_SOLUTION = "Tech solution"
+    NON_TECH_SOLUTION = "Non tech solution"
     PROJECT_IDEA = "Project idea"
     BUSINESS_PLAN = "Business plan"
     PROTOTYPE = "Prototype"
@@ -65,10 +70,12 @@ class ActionSubType(str, Enum):
     CREATED_SOLUTION = "created solution"
     SOLVED_A_REAL_WORLD_PROBLEM = "solved a real world problem"
 
+    # Investigation/Audit
     URBAN_PLANNING = "Urban Planning"
     MAPPING_ASSET_OR_ISSUE = "Mapping asset or issue"
     MAPPING_ASSEST_OR_ISSUE = "Mapping assest or issue"
     CROWDSOURCED_DATA = "Crowdsourced data"
+    STREET_CLEANLINESS_CHECK = "Street Cleanliness check"
     AUDIT = "Audit"
     URBAN_FLOODING = "Urban Flooding"
     DID_AUDIT_OR_INVESTIGATED = "did audit or investigated"
@@ -76,6 +83,7 @@ class ActionSubType(str, Enum):
         "Conducted a Survey on Water Supply Scheme"
     )
 
+    # Session Taken
     MEET_YOUR_SAFAI_KARAMCHARI = "Meet your Safai Karamchari"
     SHARING_ADDA = "Sharing Adda"
     CHANGEMAKER_ADDA = "Changemaker Adda"
@@ -84,6 +92,7 @@ class ActionSubType(str, Enum):
     SHARED_PUBLIC_OPINION = "Shared Public Opinion"
     ENGAGED_PEOPLE_THROUGH_SESSIONS = "engaged people through sessions"
 
+    # Grievance Handling
     SCHEME_FEEDBACK = "Scheme Feedback"
 
     def __str__(self):
