@@ -424,10 +424,6 @@ def extract_skill_from_action_type(action_type: ActionSubType) -> str:
     elif action_type == ActionSubType.DID_AUDIT_OR_INVESTIGATED:
         skills.extend(["critical_thinking", "data_orientation"])
 
-    # Session Taken
-    elif action_type == ActionSubType.SESSION_TAKEN:
-        skills.extend(["communication", "citizenship", "community_collaboration"])
-
     # Street Cleanliness check
     elif action_type == ActionSubType.STREET_CLEANLINESS_CHECK:
         skills.extend(["citizenship", "hands_on"])
