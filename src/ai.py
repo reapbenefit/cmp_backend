@@ -533,6 +533,30 @@ Examples:
 - "Conducted a household survey to understand water access patterns" → Survey
 - "Asked citizens to fill forms to gather opinions for a report" → Survey
 
+**Identify Action Subtype:**
+   - Match the subtype to the PHYSICAL LOCATION and SUBJECT MATTER of the investigation.
+   - "Street/door-to-door + waste/garbage/disposal" → Street Cleanliness Check
+   - Do NOT infer subtype from secondary keywords. 
+     Example: "waste disposal" ≠ "Water Supply Scheme"
+   - When unsure, prefer the subtype whose definition most closely matches 
+     the setting and subject of the action.
+
+     | Subtype                          | Use when...                                              |
+|----------------------------------|----------------------------------------------------------|
+| Street Cleanliness Check         | Action involves assessing waste/litter on streets,       |
+|                                  | public spaces, or door-to-door waste disposal habits     |
+| Survey on Water Supply Scheme    | Action involves investigating water access, pipelines,   |
+|                                  | or drinking water availability       
+
+### Examples
+
+Conversation: "We went door-to-door asking residents how they throw garbage 
+and what problems they face with waste pickup on their street."
+→ Type: Investigation/Audit
+→ Subtype: Street Cleanliness Check  ✅
+→ NOT: Survey on Water Supply Scheme ❌ (no water infrastructure mentioned)
+
+
 4. **Identify Action Category:** 
 Determine the most suitable action category based on the issue/topic discussed in the conversation.
 
