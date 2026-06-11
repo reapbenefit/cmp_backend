@@ -13,6 +13,7 @@ from llm import (
 from models import (
     ChatHistoryMessage,
     ActionType,
+    ActionSubType,
     ActionCategory,
     AIActionMetadataResponse,
     AIChatResponse,
@@ -493,7 +494,7 @@ async def get_action_metadata_from_chat_history(chat_history: List[Dict]):
             description="A concise description of the action that the young person took (less than 50 words)"
         )
         action_type: ActionType = Field(description="The type of the action")
-        action_subtype: ActionType = Field(description="The subtype of the action")
+        action_subtype: ActionSubType = Field(description="The subtype of the action")
         action_category: ActionCategory = Field(
             description="The category of the action"
         )
