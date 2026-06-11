@@ -487,6 +487,15 @@ def transform_chat_history_to_prompt(chat_history: List[Dict]) -> str:
 
 async def get_action_metadata_from_chat_history(chat_history: List[Dict]):
     class Output(BaseModel):
+        thinking_steps: str = Field(
+            description="""
+            Reason through these before classifying:
+            1. What is the PRIMARY civic action? (not just methods used)
+            2. Top 2 action types considered → why one was chosen
+            3. Top 2 subtypes considered → why one was chosen over the other
+            4. Key phrases from the conversation that drove this decision
+            """
+        )
         action_title: str = Field(
             description="A short title for the action (less than 5 words)"
         )
@@ -606,7 +615,12 @@ Return exactly:
             response_model=Output,
             max_output_tokens=8096,
         )
-
+    logger.info(
+        "type=%s | subtype=%s | reasoning=%s",
+        response.action_type,
+        response.action_subtype,
+        response.thinking_steps,
+    )
     return {
         "action_title": response.action_title,
         "action_description": response.action_description,
