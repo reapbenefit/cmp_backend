@@ -13,6 +13,7 @@ from llm import (
 from models import (
     ChatHistoryMessage,
     ActionType,
+    ActionSubType,
     ActionCategory,
     AIActionMetadataResponse,
     AIChatResponse,
@@ -486,6 +487,15 @@ def transform_chat_history_to_prompt(chat_history: List[Dict]) -> str:
 
 async def get_action_metadata_from_chat_history(chat_history: List[Dict]):
     class Output(BaseModel):
+        thinking_steps: str = Field(
+            description="""
+            Reason through these before classifying:
+            1. What is the PRIMARY civic action? (not just methods used)
+            2. Top 2 action types considered → why one was chosen
+            3. Top 2 subtypes considered → why one was chosen over the other
+            4. Key phrases from the conversation that drove this decision
+            """
+        )
         action_title: str = Field(
             description="A short title for the action (less than 5 words)"
         )
@@ -493,7 +503,7 @@ async def get_action_metadata_from_chat_history(chat_history: List[Dict]):
             description="A concise description of the action that the young person took (less than 50 words)"
         )
         action_type: ActionType = Field(description="The type of the action")
-        action_subtype: ActionType = Field(description="The subtype of the action")
+        action_subtype: ActionSubType = Field(description="The subtype of the action")
         action_category: ActionCategory = Field(
             description="The category of the action"
         )
@@ -504,7 +514,84 @@ async def get_action_metadata_from_chat_history(chat_history: List[Dict]):
     parser = PydanticOutputParser(pydantic_object=Output)
     format_instructions = parser.get_format_instructions()
 
-    system_prompt = f"""Extract the action type, action category, action title and action description from the given conversation history of a young person describing their actions to solve a local civic problem. Use the provided lists to identify the correct action type and category.\n\n# Steps\n\n1. **Review the Conversation:** Thoroughly read the conversation history to understand the actions the young person has described.\n2. **Identify Action Type:** Determine the action type from the conversation, ensuring it aligns with one of the listed action types. Focus on specific verbs or phrases that indicate the nature of the activity.\n3. **Identify Action Category:** Determine the action category based on the topic or area addressed in the conversation. Use the given list to find the most suitable category.\n4. **Ensure Uniqueness:** Each task should conclude with one unique action type and one unique action category.\n\n### Output format\n\n{format_instructions}"""
+    system_prompt = f"""
+    
+Extract the action type, action sub type, action category, action title and action description from the given conversation history of a young person describing their actions to solve a local civic problem. Use the provided lists to identify the correct action type and category.
+
+# Steps
+
+1. **Review the Conversation:** Thoroughly read the conversation history to understand the actions the young person has described.
+
+2. **Identify the Primary Civic Action:** 
+Focus on the MAIN purpose or outcome of the activity, not just the methods used.
+
+- If multiple activities are mentioned (for example surveys, interviews, measurements, awareness activities, meetings, or data collection), determine the primary civic intent behind them.
+- Methods such as questionnaires, interviews, feedback collection, or surveys may simply support a larger investigation or audit activity.
+
+3. **Identify Action Type:** 
+Determine the most appropriate action type from the provided list.
+
+Guidelines:
+- If surveys/questionnaires/interviews are mainly used to investigate, analyze, assess, monitor, validate, or audit a civic/environmental issue, classify the action as **Investigation/Audit**.
+- Only classify as a survey-related action when conducting the survey itself is the primary objective and outcome.
+- Prefer broader civic intent over isolated verbs or keywords.
+
+Examples:
+- "Collected feedback and compared it with pollution sensor data" → Investigation/Audit
+- "Measured temperature and interviewed residents about comfort" → Investigation/Audit
+- "Conducted a household survey to understand water access patterns" → Survey
+- "Asked citizens to fill forms to gather opinions for a report" → Survey
+
+**Identify Action Subtype:**
+   - Match the subtype to the PHYSICAL LOCATION and SUBJECT MATTER of the investigation.
+   - "Street/door-to-door + waste/garbage/disposal" → Street Cleanliness Check
+   - Do NOT infer subtype from secondary keywords. 
+     Example: "waste disposal" ≠ "Water Supply Scheme"
+   - When unsure, prefer the subtype whose definition most closely matches 
+     the setting and subject of the action.
+
+     | Subtype                          | Use when...                                              |
+|----------------------------------|----------------------------------------------------------|
+| Street Cleanliness Check         | Action involves assessing waste/litter on streets,       |
+|                                  | public spaces, or door-to-door waste disposal habits     |
+| Survey on Water Supply Scheme    | Action involves investigating water access, pipelines,   |
+|                                  | or drinking water availability       
+
+### Examples
+
+Conversation: "We went door-to-door asking residents how they throw garbage 
+and what problems they face with waste pickup on their street."
+→ Type: Investigation/Audit
+→ Subtype: Street Cleanliness Check  ✅
+→ NOT: Survey on Water Supply Scheme ❌ (no water infrastructure mentioned)
+
+
+4. **Identify Action Category:** 
+Determine the most suitable action category based on the issue/topic discussed in the conversation.
+
+5. **Generate Action Title:** 
+Generate a short action title (less than 5 words) that clearly summarizes the civic action taken.
+
+6. **Generate Action Description:** 
+Generate a concise description (less than 50 words) summarizing what the young person did.
+
+7. **Ensure Uniqueness:** 
+Return exactly:
+- one unique action type
+- one unique action subtype
+- one unique action category
+- one unique action subcategory
+
+### Important Instructions
+
+- Focus on the real-world civic objective of the action.
+- Do not classify solely based on words like “survey”, “questionnaire”, “feedback”, or “interview”.
+- Prefer classifications that best represent the overall impact and intent of the action.
+- Use only values from the provided enums/lists.
+
+### Output format
+
+{format_instructions}"""
 
     chat_history_prompt = transform_chat_history_to_prompt(chat_history)
 
@@ -528,7 +615,12 @@ async def get_action_metadata_from_chat_history(chat_history: List[Dict]):
             response_model=Output,
             max_output_tokens=8096,
         )
-
+    logger.info(
+        "type=%s | subtype=%s | reasoning=%s",
+        response.action_type,
+        response.action_subtype,
+        response.thinking_steps,
+    )
     return {
         "action_title": response.action_title,
         "action_description": response.action_description,
@@ -544,11 +636,11 @@ async def get_skills_from_action(
     action_type: ActionType,
     action_category: ActionCategory | None = None,
     action_subcategory: ActionSubCategory | None = None,
-    action_subtype: ActionType | None = None,
+    action_subtype: ActionSubType | None = None,
     action_title: str | None = None,
     action_description: str | None = None,
 ):
-    skills = extract_skill_from_action_type(action_type)
+    skills = extract_skill_from_action_type(action_subtype)
     skills = await get_skills_data_from_names(skills)
 
     skills_as_prompt = [

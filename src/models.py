@@ -22,54 +22,84 @@ class ChatHistoryMessage(BaseModel):
 
 
 class ActionType(str, Enum):
-    MAPPING_ASSET_OR_ISSUE = "Mapping asset or issue"
-    JOINED_A_CAMPAIGN = "Joined a Campaign"
-    OTHER_ACTIVITY = "Other Activity"
-    REPORTED_ISSUE = "reported issue"
-    OLD_REPORT_FOLLOWUP = "Old report followup"
-    CREATED_A_CAMPAIGN = "Created a Campaign"
+    CAMPAIGN = "Campaign"
+    REPORT = "Report"
     HANDS_ON = "Hands on"
-    TECH_PROTOTYPE = "Tech prototype"
-    NON_TECH_PROTOTYPE = "Non tech prototype"
-    TECH_SOLUTION = "Tech solution"
-    URBAN_PLANNING = "Urban Planning"
-    NON_TECH_SOLUTION = "Non tech solution"
-    CROWDSOURCED_DATA = "Crowdsourced data"
-    SESSION_TAKEN = "Session Taken"
-    STREET_CLEANLINESS_CHECK = "Street Cleanliness check"
-    REGULAR_WASTE_PICK_UP = "Regular waste pick up"
-    MEET_YOUR_SAFAI_KARAMCHARI = "Meet your Safai Karamchari"
-    SHARING_ADDA = "Sharing Adda"
-    CHANGEMAKER_ADDA = "Changemaker Adda"
-    COMMUNITY_ENGAGEMENT = "Community engagement"
-    PROJECT_IDEA = "Project idea"
-    BUSINESS_PLAN = "Business plan"
-    PROTOTYPE = "Prototype"
-    AUDIT = "Audit"
-    SUSTAINABLE_LIFESTYLE = "Sustainable Lifestyle"
-    CONDUCTED_A_SURVEY_ON_WATER_SUPPLY_SCHEME = (
-        "Conducted a Survey on Water Supply Scheme"
-    )
-    URBAN_FLOODING = "Urban Flooding"
-    CLOTH_COLLECTION = "Cloth Collection"
-    SWACHHATA_LEAGUE_PARTICIPATION_2023 = "Swachhata League Participation 2023"
-    CARRY_A_CLOTH_BAG = "Carry a cloth bag"
-    SEGREGATE_WASTE_AT_SOURCE = "Segregate waste at source"
-    ATTENDED_AN_OFFLINE_EVENT = "Attended an offline event"
-    SHARED_PUBLIC_OPINION = "Shared Public Opinion"
-    FOLLOWED_UP = "followed up"
-    IMPLEMENTED_EXISTING_SOLUTION = "implemented existing solution"
-    CREATED_SOLUTION = "created solution"
-    SOLVED_A_REAL_WORLD_PROBLEM = "solved a real world problem"
-    ENGAGED_PEOPLE_THROUGH_SESSIONS = "engaged people through sessions"
     INVESTIGATION_AUDIT = "Investigation/Audit"
-    DID_AUDIT_OR_INVESTIGATED = "did audit or investigated"
+    SESSION_TAKEN = "Session Taken"
+    GRIEVANCE_HANDLING = "Grievance Handling"
+    OTHER_ACTIVITY = "Other Activity"
 
     def __str__(self):
         return self.value
 
     def __eq__(self, other):
         if isinstance(other, ActionType):
+            return self.value == other.value
+
+        if isinstance(other, str):
+            return self.value == other
+
+        return False
+
+class ActionSubType(str, Enum):
+    # Campaign
+    JOINED_A_CAMPAIGN = "Joined a Campaign"
+    CREATED_A_CAMPAIGN = "Created a Campaign"
+
+    # Report
+    REPORTED_ISSUE = "reported issue"
+    OLD_REPORT_FOLLOWUP = "Old report followup"
+    REGULAR_WASTE_PICK_UP = "Regular waste pick up"
+    FOLLOWED_UP = "followed up"
+
+    # Hands on
+    TECH_PROTOTYPE = "Tech prototype"
+    NON_TECH_PROTOTYPE = "Non tech prototype"
+    TECH_SOLUTION = "Tech solution"
+    NON_TECH_SOLUTION = "Non tech solution"
+    PROJECT_IDEA = "Project idea"
+    BUSINESS_PLAN = "Business plan"
+    PROTOTYPE = "Prototype"
+    SUSTAINABLE_LIFESTYLE = "Sustainable Lifestyle"
+    CLOTH_COLLECTION = "Cloth Collection"
+    SWACHHATA_LEAGUE_PARTICIPATION_2023 = "Swachhata League Participation 2023"
+    CARRY_A_CLOTH_BAG = "Carry a cloth bag"
+    SEGREGATE_WASTE_AT_SOURCE = "Segregate waste at source"
+    IMPLEMENTED_EXISTING_SOLUTION = "implemented existing solution"
+    CREATED_SOLUTION = "created solution"
+    SOLVED_A_REAL_WORLD_PROBLEM = "solved a real world problem"
+
+    # Investigation/Audit
+    URBAN_PLANNING = "Urban Planning"
+    MAPPING_ASSET_OR_ISSUE = "Mapping asset or issue"
+    MAPPING_ASSEST_OR_ISSUE = "Mapping assest or issue"
+    CROWDSOURCED_DATA = "Crowdsourced data"
+    STREET_CLEANLINESS_CHECK = "Street Cleanliness check"
+    AUDIT = "Audit"
+    URBAN_FLOODING = "Urban Flooding"
+    DID_AUDIT_OR_INVESTIGATED = "did audit or investigated"
+    CONDUCTED_SURVEY_ON_WATER_SUPPLY_SCHEME = (
+        "Conducted a Survey on Water Supply Scheme"
+    )
+
+    # Session Taken
+    MEET_YOUR_SAFAI_KARAMCHARI = "Meet your Safai Karamchari"
+    SHARING_ADDA = "Sharing Adda"
+    CHANGEMAKER_ADDA = "Changemaker Adda"
+    COMMUNITY_ENGAGEMENT = "Community engagement"
+    ATTENDED_AN_OFFLINE_EVENT = "Attended an offline event"
+    SHARED_PUBLIC_OPINION = "Shared Public Opinion"
+    ENGAGED_PEOPLE_THROUGH_SESSIONS = "engaged people through sessions"
+
+    # Grievance Handling
+    SCHEME_FEEDBACK = "Scheme Feedback"
+
+    def __str__(self):
+        return self.value
+
+    def __eq__(self, other):
+        if isinstance(other, ActionSubType):
             return self.value == other.value
 
         if isinstance(other, str):
